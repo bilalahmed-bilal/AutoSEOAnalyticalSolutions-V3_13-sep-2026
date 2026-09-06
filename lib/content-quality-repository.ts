@@ -1,0 +1,6 @@
+import type { NextRequest } from "next/server";
+import { supabaseRest } from "@/lib/db/supabase-rest";
+const q=(p:Record<string,string>)=>"?"+Object.entries(p).map(([k,v])=>`${k}=${encodeURIComponent(v)}`).join("&");
+const map=(r:any)=>({id:r.id,workspaceId:r.workspace_id,assetId:r.asset_id,draftId:r.draft_id,score:r.score,verdict:r.verdict,report:r.report,createdBy:r.created_by,createdAt:r.created_at});
+export async function listQualityReports(ctx:{req:NextRequest;workspaceId:string},assetId?:string){const p:Record<string,string>={workspace_id:`eq.${ctx.workspaceId}`,order:"created_at.desc"};if(assetId)p.asset_id=`eq.${assetId}`;const rows=await supabaseRest<any[]>(ctx.req,"content_quality_reports",{},q(p));return rows.map(map);}
+export async function createQualityReport(ctx:{req:NextRequest;workspaceId:string},input:{assetId?:string;draftId?:string;score:number;verdict:string;report:any;createdBy?:string}){const [r]=await supabaseRest<any[]>(ctx.req,"content_quality_reports",{method:"POST",body:JSON.stringify({workspace_id:ctx.workspaceId,asset_id:input.assetId||null,draft_id:input.draftId||null,score:input.score,verdict:input.verdict,report:input.report,created_by:input.createdBy||null}),headers:{Prefer:"return=representation"}});return map(r);}

@@ -1,0 +1,7 @@
+import { NextRequest } from "next/server";
+import { requireApiAccess, unauthorizedResponse } from "@/lib/auth/api-access";
+import { getTenantContext } from "@/lib/tenant";
+import { createRun, listRuns } from "@/lib/automation-repository";
+import { getWorkflow } from "@/lib/automation-repository";
+export async function GET(req:NextRequest){const a=await requireApiAccess(req);if(!a)return unauthorizedResponse();const t=await getTenantContext(req);if(!t)return Response.json({error:"Workspace access required."},{status:403});return Response.json({runs:await listRuns({req,workspaceId:t.workspaceId},new URL(req.url).searchParams.get("workflowId")||undefined)});}
+export async function POST(req:NextRequest){const a=await requireApiAccess(req);if(!a)return unauthorizedResponse();const t=await getTenantContext(req);if(!t)return Response.json({error:"Workspace access required."},{status:403});const b=await req.json().catch(()=>({}));if(typeof b.workflowId!=="string")return Response.json({error:"workflowId is required."},{status:400});const w=await getWorkflow({req,workspaceId:t.workspaceId},b.workflowId);if(!w)return Response.json({error:"Workflow not found."},{status:404});if(w.status!=="active")return Response.json({error:"Workflow is not active."},{status:400});try{return Response.json({run:await createRun({req,workspaceId:t.workspaceId},{workflowId:w.id,input:typeof b.input==="object"&&b.input?b.input:{},createdBy:a.user.id})});}catch(e:any){return Response.json({error:e.message||"Unable to create workflow run."},{status:400});}}

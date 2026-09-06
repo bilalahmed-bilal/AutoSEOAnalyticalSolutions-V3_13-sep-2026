@@ -1,0 +1,7 @@
+import { NextRequest,NextResponse } from "next/server";
+import { requireApiAccess,unauthorizedResponse } from "@/lib/auth/api-access";
+import { requireWorkspaceRole,isRoleResult } from "@/lib/auth/rbac";
+import { getExperiment,updateExperiment } from "@/lib/experiments/repository";
+import { queueExperimentVariant } from "@/lib/experiments/service";
+function nextDay(d:string){const x=new Date(`${d}T00:00:00Z`);x.setUTCDate(x.getUTCDate()+1);return x.toISOString().slice(0,10);}
+export async function POST(req:NextRequest,{params}:{params:Promise<{id:string}>}){const a=await requireApiAccess(req);if(!a)return unauthorizedResponse();if(!a.authenticated)return unauthorizedResponse();const p=await requireWorkspaceRole(req,"editor");if(!isRoleResult(p))return p;const id=(await params).id,e=await getExperiment(p.tenant.workspaceId,id);if(!e)return NextResponse.json({error:"Experiment not found."},{status:404});if(e.status!=="running_a")return NextResponse.json({error:"Variant A must be running before Variant B starts."},{status:409});const b=await req.json().catch(()=>({}));const end=String(b.aEndDate||"");if(!/^\d{4}-\d{2}-\d{2}$/.test(end))return NextResponse.json({error:"aEndDate (YYYY-MM-DD) is required."},{status:400});try{await updateExperiment(p.tenant.workspaceId,id,{variant_a_end:end,variant_b_start:nextDay(end)});return NextResponse.json(await queueExperimentVariant({req,workspaceId:p.tenant.workspaceId},id,"b"));}catch(err:any){return NextResponse.json({error:err?.message||"Variant B start failed."},{status:400});}}

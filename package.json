@@ -1,0 +1,27 @@
+{
+  "name": "autoseo-phase1",
+  "version": "1.35.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.0",
+    "cheerio": "^1.0.0",
+    "next": "^16.2.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@tailwindcss/postcss": "^4.3.1",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^4.3.1",
+    "typescript": "^5.9.0"
+  }
+}
