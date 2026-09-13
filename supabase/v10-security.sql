@@ -6,9 +6,14 @@ update public.workspace_members set role = 'editor' where role = 'staff';
 
 alter table public.workspace_members
   drop constraint if exists workspace_members_role_check;
-alter table public.workspace_members
-  add constraint workspace_members_role_check
-  check (role in ('owner','admin','editor','viewer'));
+do $$
+begin
+  alter table public.workspace_members
+    add constraint workspace_members_role_check
+    check (role in ('owner','admin','editor','viewer'));
+exception when duplicate_object then
+  null;
+end $$;
 
 -- Prevent owners from being removed or demoted by ordinary member APIs.
 create or replace function public.prevent_owner_membership_change()

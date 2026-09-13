@@ -26,3 +26,5 @@ drop policy if exists action_approvals_update_admins on public.action_approvals;
 create policy action_approvals_update_admins on public.action_approvals for update using (public.is_workspace_admin(workspace_id)) with check (public.is_workspace_admin(workspace_id));
 drop trigger if exists trg_prevent_workspace_id_change on public.action_approvals;
 create trigger trg_prevent_workspace_id_change before update on public.action_approvals for each row execute function public.prevent_workspace_id_change();
+revoke all on public.action_approvals from anon;
+grant select, insert, update on public.action_approvals to authenticated;

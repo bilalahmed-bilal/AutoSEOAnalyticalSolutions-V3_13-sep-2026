@@ -32,8 +32,10 @@ Project ready hone ke baad:
 3. Is project ki `supabase/COMBINED-MIGRATION.sql` file kholein, poora
    content copy karein, aur SQL Editor mein paste kar dein.
 4. **Run** dabayein (ya Ctrl+Enter).
-5. Agar "Success" jaisa message aaye, saari 25 migrations ek sath ho gayi
-   hain. Agar koi error aaye, uska text share karein.
+5. Agar "Success" jaisa message aaye, schema through V44 apply ho gayi
+   hai (V38/V43 ke SQL files nahi hain — wo application-only versions
+   hain). Agar koi error aaye, uska text share karein. Apply karne se
+   pehle backup lein; ye file existing data delete nahi karti.
 
 ## Step 4: .env.local update karein
 

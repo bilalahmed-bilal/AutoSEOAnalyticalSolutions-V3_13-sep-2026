@@ -1,12 +1,11 @@
 -- AutoSEO V41: durable automation-run worker, atomic claiming and retries.
 -- Apply after V39 and V40.
 
-alter table public.automation_runs
-  add column if not exists attempts integer not null default 0,
-  add column if not exists max_attempts integer not null default 5,
-  add column if not exists run_after timestamptz not null default now(),
-  add column if not exists locked_at timestamptz,
-  add column if not exists locked_by text;
+alter table public.automation_runs add column if not exists attempts integer not null default 0;
+alter table public.automation_runs add column if not exists max_attempts integer not null default 5;
+alter table public.automation_runs add column if not exists run_after timestamptz not null default now();
+alter table public.automation_runs add column if not exists locked_at timestamptz;
+alter table public.automation_runs add column if not exists locked_by text;
 
 create index if not exists automation_runs_due_idx
   on public.automation_runs(status, run_after, created_at)

@@ -22,10 +22,28 @@ create trigger trg_jobs_updated_at
 before update on public.jobs
 for each row execute function public.set_updated_at();
 
--- One owner per workspace. Existing bad data must be corrected before this index.
-create unique index if not exists uq_workspace_single_owner
-on public.workspace_members(workspace_id)
-where role = 'owner';
+-- One owner per workspace. Skip rather than fail if historical duplicates exist.
+do $$
+begin
+  if not exists (
+    select 1 from pg_indexes
+    where schemaname = 'public' and indexname = 'uq_workspace_single_owner'
+  ) and not exists (
+    select 1 from public.workspace_members
+    where role = 'owner'
+    group by workspace_id
+    having count(*) > 1
+  ) then
+    execute 'create unique index uq_workspace_single_owner on public.workspace_members(workspace_id) where role = ''owner''';
+  elsif exists (
+    select 1 from public.workspace_members
+    where role = 'owner'
+    group by workspace_id
+    having count(*) > 1
+  ) then
+    raise notice 'uq_workspace_single_owner skipped; multiple owners exist';
+  end if;
+end $$;
 
 -- Protect immutable identity fields after creation.
 create or replace function public.prevent_workspace_identity_change()
@@ -122,33 +140,10 @@ $$;
 revoke all on function public.create_workspace_atomic(text, text) from public;
 grant execute on function public.create_workspace_atomic(text, text) to authenticated;
 
--- Useful production diagnostics, exposed only to trusted service role.
-create or replace function public.recover_stale_jobs(stale_after interval default interval '15 minutes')
-returns integer
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare recovered integer;
-begin
-  update public.jobs
-     set status = 'queued',
-         locked_at = null,
-         locked_by = null,
-         run_after = now(),
-         last_error = coalesce(last_error || E'\n', '') || 'Recovered stale worker lock.',
-         updated_at = now()
-   where status = 'running'
-     and locked_at is not null
-     and locked_at < now() - stale_after;
-  get diagnostics recovered = row_count;
-  return recovered;
-end;
-$$;
-revoke all on function public.recover_stale_jobs(interval) from public;
-grant execute on function public.recover_stale_jobs(interval) to service_role;
+-- recover_stale_jobs(interval) is defined once in v6-queue.sql with the canonical
+-- p_stale_after signature expected by app/api/cron/autoseo/route.ts.
 
--- Service-side event history for operational debugging.
+-- Canonical table for fresh DBs that skipped v6; no-op when the table already exists.
 create table if not exists public.job_attempts (
   id uuid primary key default gen_random_uuid(),
   job_id uuid not null references public.jobs(id) on delete cascade,
@@ -162,11 +157,133 @@ create table if not exists public.job_attempts (
   provider_job_id text,
   provider_link text,
   created_at timestamptz not null default now(),
-  unique(job_id, attempt)
+  unique (job_id, attempt)
 );
+
+-- Reconcile any existing job_attempts shape (including tables that lack created_at
+-- or use attempt_no) BEFORE indexes, triggers, or policies reference those columns.
+-- ADD COLUMN IF NOT EXISTS never drops rows.
+alter table public.job_attempts add column if not exists job_id uuid;
+alter table public.job_attempts add column if not exists workspace_id uuid;
+alter table public.job_attempts add column if not exists attempt integer;
+alter table public.job_attempts add column if not exists worker_id text;
+alter table public.job_attempts add column if not exists started_at timestamptz;
+alter table public.job_attempts add column if not exists finished_at timestamptz;
+alter table public.job_attempts add column if not exists status text;
+alter table public.job_attempts add column if not exists error_message text;
+alter table public.job_attempts add column if not exists provider_job_id text;
+alter table public.job_attempts add column if not exists provider_link text;
+alter table public.job_attempts add column if not exists created_at timestamptz;
+
+-- Copy legacy attempt_no into attempt without requiring attempt_no to exist.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'job_attempts' and column_name = 'attempt_no'
+  ) then
+    execute 'update public.job_attempts set attempt = attempt_no where attempt is null';
+  end if;
+end $$;
+
+-- Backfill timestamps using only columns that now exist.
+update public.job_attempts
+   set created_at = coalesce(created_at, started_at, now())
+ where created_at is null;
+update public.job_attempts
+   set started_at = coalesce(started_at, created_at, now())
+ where started_at is null;
+
+alter table public.job_attempts alter column created_at set default now();
+alter table public.job_attempts alter column started_at set default now();
+do $$
+begin
+  alter table public.job_attempts alter column created_at set not null;
+exception when others then
+  raise notice 'job_attempts.created_at left nullable; existing nulls could not be tightened';
+end $$;
+do $$
+begin
+  alter table public.job_attempts alter column started_at set not null;
+exception when others then
+  raise notice 'job_attempts.started_at left nullable; existing nulls could not be tightened';
+end $$;
+
+do $$
+declare r record;
+begin
+  for r in
+    select c.conname
+    from pg_constraint c
+    join pg_class t on t.oid = c.conrelid
+    join pg_namespace n on n.oid = t.relnamespace
+    where n.nspname = 'public'
+      and t.relname = 'job_attempts'
+      and c.contype = 'c'
+      and pg_get_constraintdef(c.oid) ~* 'status'
+  loop
+    execute format('alter table public.job_attempts drop constraint if exists %I', r.conname);
+  end loop;
+  begin
+    alter table public.job_attempts
+      add constraint job_attempts_status_check
+      check (status in ('running','succeeded','failed'));
+  exception when check_violation or duplicate_object then
+    raise notice 'job_attempts status check skipped to avoid failing on existing rows';
+  end;
+end $$;
+
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'job_attempts' and column_name = 'attempt'
+  ) and not exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'public.job_attempts'::regclass
+      and contype = 'c'
+      and pg_get_constraintdef(oid) ~* 'attempt'
+      and pg_get_constraintdef(oid) !~* 'status'
+  ) then
+    begin
+      alter table public.job_attempts
+        add constraint job_attempts_attempt_check check (attempt > 0);
+    exception when check_violation then
+      raise notice 'job_attempts.attempt > 0 check skipped to avoid failing on existing rows';
+    end;
+  end if;
+end $$;
+
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'job_attempts' and column_name = 'attempt'
+  ) and not exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'public.job_attempts'::regclass
+      and contype = 'u'
+      and pg_get_constraintdef(oid) like '%(job_id, attempt)%'
+  ) then
+    begin
+      alter table public.job_attempts
+        add constraint job_attempts_job_id_attempt_key unique (job_id, attempt);
+    exception when unique_violation then
+      raise notice 'job_attempts unique(job_id, attempt) skipped; duplicate rows were left untouched';
+    end;
+  end if;
+end $$;
+
+-- Recreate indexes only after canonical columns exist.
+drop index if exists public.idx_job_attempts_job;
+drop index if exists public.idx_job_attempts_workspace;
 create index if not exists idx_job_attempts_job on public.job_attempts(job_id, attempt desc);
+create index if not exists idx_job_attempts_workspace on public.job_attempts(workspace_id, created_at desc);
 alter table public.job_attempts enable row level security;
 
+drop policy if exists job_attempts_select on public.job_attempts;
 create policy job_attempts_select on public.job_attempts
 for select using (
   exists (
@@ -179,6 +296,28 @@ for select using (
 -- No client insert/update/delete policies: attempts are written by trusted worker code.
 
 -- Prevent duplicate active publish jobs even if an idempotency key is accidentally changed.
-create unique index if not exists uq_active_publish_draft
-on public.jobs((payload->>'draftId'))
-where type = 'publish_draft' and status in ('queued','running');
+do $$
+begin
+  if not exists (
+    select 1 from pg_indexes
+    where schemaname = 'public' and indexname = 'uq_active_publish_draft'
+  ) then
+    if exists (
+      select 1
+      from public.jobs
+      where type = 'publish_draft'
+        and status in ('queued','running')
+        and payload->>'draftId' is not null
+      group by payload->>'draftId'
+      having count(*) > 1
+    ) then
+      raise notice 'uq_active_publish_draft skipped; duplicate active publish jobs exist';
+    else
+      execute $idx$
+        create unique index uq_active_publish_draft
+        on public.jobs((payload->>'draftId'))
+        where type = 'publish_draft' and status in ('queued','running')
+      $idx$;
+    end if;
+  end if;
+end $$;

@@ -91,7 +91,8 @@ begin
     'roi_reports',
     'strategy_runs',
     'operating_runs',
-    'oauth_states'
+    'oauth_states',
+    'social_competitors'
   ] loop
     if to_regclass('public.' || t) is not null then
       execute format('drop trigger if exists trg_prevent_workspace_id_change on public.%I', t);
@@ -309,6 +310,34 @@ begin
   end loop;
 end $$;
 
+-- Drop legacy permissive policy names that would otherwise OR with the RBAC policies.
+do $$
+begin
+  if to_regclass('public.keyword_research_projects') is not null then
+    execute 'drop policy if exists keyword_projects_all on public.keyword_research_projects';
+  end if;
+  if to_regclass('public.keyword_opportunities') is not null then
+    execute 'drop policy if exists keyword_opportunities_all on public.keyword_opportunities';
+  end if;
+  if to_regclass('public.content_strategy_projects') is not null then
+    execute 'drop policy if exists content_strategy_select on public.content_strategy_projects';
+    execute 'drop policy if exists content_strategy_insert on public.content_strategy_projects';
+    execute 'drop policy if exists content_strategy_update on public.content_strategy_projects';
+    execute 'drop policy if exists content_strategy_delete on public.content_strategy_projects';
+  end if;
+  if to_regclass('public.technical_seo_audits') is not null then
+    execute 'drop policy if exists technical_seo_select on public.technical_seo_audits';
+    execute 'drop policy if exists technical_seo_insert on public.technical_seo_audits';
+  end if;
+  if to_regclass('public.site_architecture_projects') is not null then
+    execute 'drop policy if exists site_architecture_select on public.site_architecture_projects';
+    execute 'drop policy if exists site_architecture_insert on public.site_architecture_projects';
+  end if;
+  if to_regclass('public.monitoring_snapshots') is not null then
+    execute 'drop policy if exists monitoring_snapshots_member on public.monitoring_snapshots';
+  end if;
+end $$;
+
 -- Keyword opportunities are replaced as a batch by editor-level keyword research.
 alter table public.keyword_opportunities enable row level security;
 drop policy if exists keyword_opportunities_select on public.keyword_opportunities;
@@ -456,6 +485,7 @@ drop policy if exists oauth_states_delete on public.oauth_states;
 -- -----------------------------------------------------------------------------
 -- 17. Explicit grants: PostgREST's authenticated role must have table privileges,
 -- while RLS policies are the row/role boundary. Service role remains unrestricted.
+-- GRANT statements below assume product tables created by earlier versioned files.
 -- -----------------------------------------------------------------------------
 grant select on public.workspaces, public.workspace_members, public.connections,
   public.drafts, public.seo_score_history, public.jobs, public.audit_logs,

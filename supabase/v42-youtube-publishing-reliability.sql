@@ -50,3 +50,8 @@ drop trigger if exists trg_publication_intents_updated_at on public.publication_
 create trigger trg_publication_intents_updated_at
 before update on public.publication_intents
 for each row execute function public.touch_publication_intent_updated_at();
+
+drop trigger if exists trg_prevent_workspace_id_change on public.publication_intents;
+create trigger trg_prevent_workspace_id_change
+before update on public.publication_intents
+for each row execute function public.prevent_workspace_id_change();

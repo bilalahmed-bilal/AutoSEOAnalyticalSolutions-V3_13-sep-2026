@@ -10,4 +10,5 @@ drop policy if exists local_seo_projects_select on public.local_seo_projects;
 drop policy if exists local_seo_projects_insert on public.local_seo_projects;
 create policy local_seo_projects_select on public.local_seo_projects for select using (public.is_workspace_member(workspace_id));
 create policy local_seo_projects_insert on public.local_seo_projects for insert with check (public.is_workspace_member(workspace_id));
+drop trigger if exists local_seo_projects_updated_at on public.local_seo_projects;
 create trigger local_seo_projects_updated_at before update on public.local_seo_projects for each row execute function public.set_updated_at();

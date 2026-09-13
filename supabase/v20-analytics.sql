@@ -17,6 +17,16 @@ create policy analytics_snapshots_select on public.analytics_snapshots for selec
 
 -- Existing V12 databases need the provider check expanded as well.
 alter table public.connections drop constraint if exists connections_provider_check;
-alter table public.connections add constraint connections_provider_check check (provider in ('wordpress','shopify','custom','youtube','facebook','google-search-console'));
+do $$
+begin
+  alter table public.connections add constraint connections_provider_check check (provider in ('wordpress','shopify','custom','youtube','facebook','google-search-console'));
+exception when duplicate_object then
+  null;
+end $$;
 alter table public.oauth_states drop constraint if exists oauth_states_provider_check;
-alter table public.oauth_states add constraint oauth_states_provider_check check (provider in ('google-youtube','google-search-console','facebook'));
+do $$
+begin
+  alter table public.oauth_states add constraint oauth_states_provider_check check (provider in ('google-youtube','google-search-console','facebook'));
+exception when duplicate_object then
+  null;
+end $$;
