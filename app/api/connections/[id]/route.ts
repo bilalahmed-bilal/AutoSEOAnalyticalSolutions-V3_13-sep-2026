@@ -13,6 +13,20 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const tenant = await getTenantContext(req);
   if (!tenant) return NextResponse.json({ error: "Valid x-workspace-id required." }, { status: 400 });
   const { id } = await params;
-  await supabaseRest(req, "connections", { method: "PATCH", body: JSON.stringify({ status: "revoked", encrypted_credentials: "revoked", last_error: null, updated_at: new Date().toISOString() }), headers: { Prefer: "return=minimal" } }, `?id=eq.${encodeURIComponent(id)}&workspace_id=eq.${encodeURIComponent(tenant.workspaceId)}`);
+  await supabaseRest(
+    req,
+    "connections",
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        status: "revoked",
+        encrypted_credentials: "revoked",
+        last_error: null,
+        updated_at: new Date().toISOString(),
+      }),
+      headers: { Prefer: "return=minimal" },
+    },
+    `?id=eq.${encodeURIComponent(id)}&workspace_id=eq.${encodeURIComponent(tenant.workspaceId)}`
+  );
   return NextResponse.json({ ok: true });
 }

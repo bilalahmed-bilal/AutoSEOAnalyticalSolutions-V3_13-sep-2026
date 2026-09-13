@@ -7,16 +7,18 @@ import { getFacebookPageStats, getFacebookRecentPosts } from "@/lib/analytics/fa
 import { flagUnderperforming } from "@/lib/analytics/audit";
 import { getSearchConsoleConnection, getSearchConsoleSummary } from "@/lib/analytics/search-console";
 import { supabaseAdmin } from "@/lib/db/supabase-rest";
+import { errorMessage, type UnknownRecord } from "@/lib/unknown";
 
 export async function GET(req: NextRequest) {
   const access = await requireApiAccess(req);
   if (!access) return unauthorizedResponse();
   const tenant = access.authenticated ? await getTenantContext(req) : null;
-  if (access.authenticated && !tenant) return NextResponse.json({ error: "Valid x-workspace-id required." }, { status: 400 });
+  if (access.authenticated && !tenant)
+    return NextResponse.json({ error: "Valid x-workspace-id required." }, { status: 400 });
   const settings = await getPublishSettingsRemote({ req, workspaceId: tenant?.workspaceId });
   const drafts = await listDraftsRemote({ req, workspaceId: tenant?.workspaceId });
 
-  const result: any = {
+  const result: UnknownRecord = {
     website: { scoreHistory: [] },
     youtube: null,
     facebook: null,
@@ -69,16 +71,17 @@ export async function GET(req: NextRequest) {
         result.searchConsole = await getSearchConsoleSummary(
           connection.credentials,
           start.toISOString().slice(0, 10),
-          end.toISOString().slice(0, 10),
+          end.toISOString().slice(0, 10)
         );
-      } catch (error: any) {
-        result.searchConsole = { error: error?.message || "Search Console unavailable." };
+      } catch (error: unknown) {
+        result.searchConsole = { error: errorMessage(error, "Search Console unavailable.") };
       }
     }
     try {
-      result.snapshots = await supabaseAdmin<any[]>(
-        "analytics_snapshots", {},
-        `?workspace_id=eq.${encodeURIComponent(tenant.workspaceId)}&order=created_at.desc&limit=30`,
+      result.snapshots = await supabaseAdmin<UnknownRecord[]>(
+        "analytics_snapshots",
+        {},
+        `?workspace_id=eq.${encodeURIComponent(tenant.workspaceId)}&order=created_at.desc&limit=30`
       );
     } catch {
       result.snapshots = [];
@@ -89,10 +92,7 @@ export async function GET(req: NextRequest) {
   if (settings.facebook) {
     const pageStats = await getFacebookPageStats(settings.facebook.settings);
     const posts = await getFacebookRecentPosts(settings.facebook.settings);
-    const audited = flagUnderperforming(
-      posts,
-      (p) => p.likeCount + p.commentCount + p.shareCount
-    );
+    const audited = flagUnderperforming(posts, (p) => p.likeCount + p.commentCount + p.shareCount);
     result.facebook = { pageStats, posts: audited };
   }
 

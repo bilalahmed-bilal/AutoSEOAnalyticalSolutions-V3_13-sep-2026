@@ -9,9 +9,7 @@ function getKey(): Buffer {
     throw new Error("AUTOSEO_ENCRYPTION_KEY is required to store connected-account credentials securely.");
   }
 
-  const key = /^[0-9a-fA-F]{64}$/.test(configured)
-    ? Buffer.from(configured, "hex")
-    : Buffer.from(configured, "base64");
+  const key = /^[0-9a-fA-F]{64}$/.test(configured) ? Buffer.from(configured, "hex") : Buffer.from(configured, "base64");
   if (key.length !== 32) throw new Error("AUTOSEO_ENCRYPTION_KEY must decode to exactly 32 bytes.");
   return key;
 }
@@ -50,4 +48,12 @@ export function decryptObjectSecrets<T extends Record<string, unknown>>(obj: T, 
     if (typeof value === "string" && value) copy[field] = decryptSecret(value) as T[keyof T];
   }
   return copy;
+}
+
+/** Compare shared secrets without leaking length via early string inequality. */
+export function secretsMatch(provided: string | null | undefined, expected: string | undefined): boolean {
+  if (!provided || !expected) return false;
+  const left = crypto.createHash("sha256").update(provided).digest();
+  const right = crypto.createHash("sha256").update(expected).digest();
+  return crypto.timingSafeEqual(left, right);
 }

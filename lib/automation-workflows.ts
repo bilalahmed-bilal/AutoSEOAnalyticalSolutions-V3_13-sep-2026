@@ -1,6 +1,13 @@
 export type WorkflowStep = {
   id: string;
-  type: "keyword_research" | "competitor_analysis" | "content_strategy" | "content_quality" | "technical_seo" | "site_architecture" | "local_seo";
+  type:
+    | "keyword_research"
+    | "competitor_analysis"
+    | "content_strategy"
+    | "content_quality"
+    | "technical_seo"
+    | "site_architecture"
+    | "local_seo";
   enabled: boolean;
   input?: Record<string, unknown>;
 };
@@ -24,17 +31,19 @@ export function normalizeSteps(value: unknown): WorkflowStep[] {
       id: String(x.id || `${type}-${index + 1}`),
       type: WORKFLOW_STEP_LABELS[type] ? type : "technical_seo",
       enabled: x.enabled !== false,
-      input: typeof x.input === "object" && x.input ? x.input as Record<string, unknown> : {},
+      input: typeof x.input === "object" && x.input ? (x.input as Record<string, unknown>) : {},
     };
   });
 }
 
 export function validateWorkflowInput(input: { name: string; triggerType: string; schedule?: string; steps: unknown }) {
   if (!input.name.trim()) throw new Error("Workflow name is required.");
-  if (!["manual", "schedule", "on_publish", "on_audit"].includes(input.triggerType)) throw new Error("Invalid workflow trigger.");
-  const steps = normalizeSteps(input.steps).filter(s => s.enabled);
+  if (!["manual", "schedule", "on_publish", "on_audit"].includes(input.triggerType))
+    throw new Error("Invalid workflow trigger.");
+  const steps = normalizeSteps(input.steps).filter((s) => s.enabled);
   if (!steps.length) throw new Error("At least one enabled workflow step is required.");
   if (steps.length > 12) throw new Error("A workflow can contain at most 12 steps.");
-  if (input.triggerType === "schedule" && !input.schedule?.trim()) throw new Error("Schedule is required for scheduled workflows.");
+  if (input.triggerType === "schedule" && !input.schedule?.trim())
+    throw new Error("Schedule is required for scheduled workflows.");
   return steps;
 }

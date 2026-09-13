@@ -1,12 +1,114 @@
 import type { NextRequest } from "next/server";
 import { supabaseRest } from "@/lib/db/supabase-rest";
+import { type UnknownRecord } from "@/lib/unknown";
 
-const q=(p:Record<string,string>)=>"?"+Object.entries(p).map(([k,v])=>`${k}=${encodeURIComponent(v)}`).join("&");
-const mapProject=(r:any)=>({id:r.id,workspaceId:r.workspace_id,name:r.name,strategyProjectId:r.strategy_project_id??undefined,status:r.status,createdBy:r.created_by??undefined,createdAt:r.created_at,updatedAt:r.updated_at});
-const mapAsset=(r:any)=>({id:r.id,workspaceId:r.workspace_id,projectId:r.project_id,strategyItem:r.strategy_item||{},brief:r.brief||{},result:r.result||null,status:r.status,draftId:r.draft_id??undefined,createdBy:r.created_by??undefined,createdAt:r.created_at,updatedAt:r.updated_at});
-export async function listStudioProjects(ctx:{req:NextRequest;workspaceId:string}){const rows=await supabaseRest<any[]>(ctx.req,"content_studio_projects",{},q({workspace_id:`eq.${ctx.workspaceId}`,order:"created_at.desc"}));return rows.map(mapProject);}
-export async function createStudioProject(ctx:{req:NextRequest;workspaceId:string},input:{name:string;strategyProjectId?:string;createdBy?:string}){const [r]=await supabaseRest<any[]>(ctx.req,"content_studio_projects",{method:"POST",body:JSON.stringify({workspace_id:ctx.workspaceId,name:input.name,strategy_project_id:input.strategyProjectId||null,created_by:input.createdBy||null}),headers:{Prefer:"return=representation"}});return mapProject(r);}
-export async function getStudioProject(ctx:{req:NextRequest;workspaceId:string},id:string){const rows=await supabaseRest<any[]>(ctx.req,"content_studio_projects",{},q({id:`eq.${id}`,workspace_id:`eq.${ctx.workspaceId}`,limit:"1"}));return rows[0]?mapProject(rows[0]):null;}
-export async function listStudioAssets(ctx:{req:NextRequest;workspaceId:string},projectId:string){const rows=await supabaseRest<any[]>(ctx.req,"content_studio_assets",{},q({project_id:`eq.${projectId}`,workspace_id:`eq.${ctx.workspaceId}`,order:"created_at.desc"}));return rows.map(mapAsset);}
-export async function createStudioAsset(ctx:{req:NextRequest;workspaceId:string},input:{projectId:string;strategyItem:any;brief:any;result?:any;status?:string;createdBy?:string}){const [r]=await supabaseRest<any[]>(ctx.req,"content_studio_assets",{method:"POST",body:JSON.stringify({workspace_id:ctx.workspaceId,project_id:input.projectId,strategy_item:input.strategyItem,brief:input.brief,result:input.result||null,status:input.status||"brief",created_by:input.createdBy||null}),headers:{Prefer:"return=representation"}});return mapAsset(r);}
-export async function updateStudioAsset(ctx:{req:NextRequest;workspaceId:string},id:string,patch:Record<string,unknown>){const rows=await supabaseRest<any[]>(ctx.req,"content_studio_assets",{method:"PATCH",body:JSON.stringify(patch),headers:{Prefer:"return=representation"}},q({id:`eq.${id}`,workspace_id:`eq.${ctx.workspaceId}`}));return rows[0]?mapAsset(rows[0]):null;}
+const q = (p: Record<string, string>) =>
+  "?" +
+  Object.entries(p)
+    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+    .join("&");
+const mapProject = (r: UnknownRecord) => ({
+  id: r.id,
+  workspaceId: r.workspace_id,
+  name: r.name,
+  strategyProjectId: r.strategy_project_id ?? undefined,
+  status: r.status,
+  createdBy: r.created_by ?? undefined,
+  createdAt: r.created_at,
+  updatedAt: r.updated_at,
+});
+const mapAsset = (r: UnknownRecord) => ({
+  id: r.id,
+  workspaceId: r.workspace_id,
+  projectId: r.project_id,
+  strategyItem: r.strategy_item || {},
+  brief: r.brief || {},
+  result: r.result || null,
+  status: r.status,
+  draftId: r.draft_id ?? undefined,
+  createdBy: r.created_by ?? undefined,
+  createdAt: r.created_at,
+  updatedAt: r.updated_at,
+});
+export async function listStudioProjects(ctx: { req: NextRequest; workspaceId: string }) {
+  const rows = await supabaseRest<UnknownRecord[]>(
+    ctx.req,
+    "content_studio_projects",
+    {},
+    q({ workspace_id: `eq.${ctx.workspaceId}`, order: "created_at.desc" })
+  );
+  return rows.map(mapProject);
+}
+export async function createStudioProject(
+  ctx: { req: NextRequest; workspaceId: string },
+  input: { name: string; strategyProjectId?: string; createdBy?: string }
+) {
+  const [r] = await supabaseRest<UnknownRecord[]>(ctx.req, "content_studio_projects", {
+    method: "POST",
+    body: JSON.stringify({
+      workspace_id: ctx.workspaceId,
+      name: input.name,
+      strategy_project_id: input.strategyProjectId || null,
+      created_by: input.createdBy || null,
+    }),
+    headers: { Prefer: "return=representation" },
+  });
+  return mapProject(r);
+}
+export async function getStudioProject(ctx: { req: NextRequest; workspaceId: string }, id: string) {
+  const rows = await supabaseRest<UnknownRecord[]>(
+    ctx.req,
+    "content_studio_projects",
+    {},
+    q({ id: `eq.${id}`, workspace_id: `eq.${ctx.workspaceId}`, limit: "1" })
+  );
+  return rows[0] ? mapProject(rows[0]) : null;
+}
+export async function listStudioAssets(ctx: { req: NextRequest; workspaceId: string }, projectId: string) {
+  const rows = await supabaseRest<UnknownRecord[]>(
+    ctx.req,
+    "content_studio_assets",
+    {},
+    q({ project_id: `eq.${projectId}`, workspace_id: `eq.${ctx.workspaceId}`, order: "created_at.desc" })
+  );
+  return rows.map(mapAsset);
+}
+export async function createStudioAsset(
+  ctx: { req: NextRequest; workspaceId: string },
+  input: {
+    projectId: string;
+    strategyItem: UnknownRecord;
+    brief: UnknownRecord;
+    result?: UnknownRecord;
+    status?: string;
+    createdBy?: string;
+  }
+) {
+  const [r] = await supabaseRest<UnknownRecord[]>(ctx.req, "content_studio_assets", {
+    method: "POST",
+    body: JSON.stringify({
+      workspace_id: ctx.workspaceId,
+      project_id: input.projectId,
+      strategy_item: input.strategyItem,
+      brief: input.brief,
+      result: input.result || null,
+      status: input.status || "brief",
+      created_by: input.createdBy || null,
+    }),
+    headers: { Prefer: "return=representation" },
+  });
+  return mapAsset(r);
+}
+export async function updateStudioAsset(
+  ctx: { req: NextRequest; workspaceId: string },
+  id: string,
+  patch: Record<string, unknown>
+) {
+  const rows = await supabaseRest<UnknownRecord[]>(
+    ctx.req,
+    "content_studio_assets",
+    { method: "PATCH", body: JSON.stringify(patch), headers: { Prefer: "return=representation" } },
+    q({ id: `eq.${id}`, workspace_id: `eq.${ctx.workspaceId}` })
+  );
+  return rows[0] ? mapAsset(rows[0]) : null;
+}

@@ -9,6 +9,7 @@ import { testShopifyConnection } from "@/lib/publishers/shopify";
 import { testCustomSiteConnection } from "@/lib/publishers/custom-site";
 import { testYouTubeConnection } from "@/lib/publishers/youtube";
 import { testFacebookConnection } from "@/lib/publishers/facebook";
+import { errorMessage, type UnknownRecord } from "@/lib/unknown";
 
 export async function POST(req: NextRequest) {
   const access = await requireApiAccess(req);
@@ -21,13 +22,18 @@ export async function POST(req: NextRequest) {
   const tenant = await getTenantContext(req);
   if (!tenant) return NextResponse.json({ error: "Valid x-workspace-id required." }, { status: 400 });
 
-  const rows = await supabaseRest<any[]>(req, "connections", {}, `?workspace_id=eq.${tenant.workspaceId}&status=neq.revoked`);
+  const rows = await supabaseRest<UnknownRecord[]>(
+    req,
+    "connections",
+    {},
+    `?workspace_id=eq.${tenant.workspaceId}&status=neq.revoked`
+  );
   const results = [];
   for (const row of rows) {
     const started = Date.now();
     try {
       const data = JSON.parse(decryptSecret(row.encrypted_credentials));
-      let result: any;
+      let result: UnknownRecord;
       if (row.provider === "wordpress") result = await testWordPressConnection(data);
       else if (row.provider === "shopify") result = await testShopifyConnection(data);
       else if (row.provider === "custom") result = await testCustomSiteConnection(data);
@@ -35,13 +41,45 @@ export async function POST(req: NextRequest) {
       else if (row.provider === "facebook") result = await testFacebookConnection(data);
       else throw new Error("Unsupported provider");
       const ok = Boolean(result?.ok);
-      await supabaseRest(req, "connections", { method:"PATCH", body:JSON.stringify({ status:ok ? "active" : "error", last_checked_at:new Date().toISOString(), last_error:ok ? null : String(result?.message || "Connection failed").slice(0,1000) }), headers:{Prefer:"return=minimal"} }, `?id=eq.${row.id}&workspace_id=eq.${tenant.workspaceId}`);
-      results.push({ id:row.id, provider:row.provider, ok, message:result?.message || (ok ? "Connection OK" : "Connection failed"), latencyMs:Date.now()-started });
+      await supabaseRest(
+        req,
+        "connections",
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            status: ok ? "active" : "error",
+            last_checked_at: new Date().toISOString(),
+            last_error: ok ? null : String(result?.message || "Connection failed").slice(0, 1000),
+          }),
+          headers: { Prefer: "return=minimal" },
+        },
+        `?id=eq.${row.id}&workspace_id=eq.${tenant.workspaceId}`
+      );
+      results.push({
+        id: row.id,
+        provider: row.provider,
+        ok,
+        message: result?.message || (ok ? "Connection OK" : "Connection failed"),
+        latencyMs: Date.now() - started,
+      });
       if (!ok) continue;
-    } catch (e:any) {
-      const message = String(e?.message || "Connection failed");
-      await supabaseRest(req, "connections", { method:"PATCH", body:JSON.stringify({ status:"error", last_checked_at:new Date().toISOString(), last_error:message.slice(0,1000) }), headers:{Prefer:"return=minimal"} }, `?id=eq.${row.id}&workspace_id=eq.${tenant.workspaceId}`);
-      results.push({ id:row.id, provider:row.provider, ok:false, message, latencyMs:Date.now()-started });
+    } catch (e: unknown) {
+      const message = String(errorMessage(e, "Connection failed"));
+      await supabaseRest(
+        req,
+        "connections",
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            status: "error",
+            last_checked_at: new Date().toISOString(),
+            last_error: message.slice(0, 1000),
+          }),
+          headers: { Prefer: "return=minimal" },
+        },
+        `?id=eq.${row.id}&workspace_id=eq.${tenant.workspaceId}`
+      );
+      results.push({ id: row.id, provider: row.provider, ok: false, message, latencyMs: Date.now() - started });
     }
   }
   return NextResponse.json({ results });

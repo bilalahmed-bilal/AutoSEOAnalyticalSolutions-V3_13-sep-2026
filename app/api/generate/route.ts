@@ -9,19 +9,13 @@ export async function POST(req: NextRequest) {
     const input = (await req.json()) as GenerateContentInput;
 
     if (!input.channel || !input.language || !input.topic || !input.profile) {
-      return NextResponse.json(
-        { error: "Missing required fields." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
     }
 
     const content = await generateContent(input);
     return NextResponse.json({ content });
   } catch (err) {
     console.error("generate-content error:", err);
-    return NextResponse.json(
-      { error: "Content generation failed. Please try again." },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Content generation failed. Please try again." }, { status: 500 });
   }
 }

@@ -11,8 +11,10 @@ import { publishToFacebook } from "@/lib/publishers/facebook";
 // call adapter X's matching function" — used by both the manual approve
 // route and the auto-publish path, so the two never drift out of sync.
 
-export async function publishDraftWithSettings(draft: ContentDraft, settings: Awaited<ReturnType<typeof getPublishSettingsRemote>>): Promise<string | undefined> {
-
+export async function publishDraftWithSettings(
+  draft: ContentDraft,
+  settings: Awaited<ReturnType<typeof getPublishSettingsRemote>>
+): Promise<string | undefined> {
   if (draft.channel === "website") {
     if (!settings.website) throw new Error("Website connect nahi hai.");
 
@@ -95,7 +97,10 @@ export async function publishDraftWithSettings(draft: ContentDraft, settings: Aw
   throw new Error("Unknown channel.");
 }
 
-export async function publishDraftToChannel(draft: ContentDraft, ctx?: { req?: NextRequest; workspaceId?: string }): Promise<string | undefined> {
+export async function publishDraftToChannel(
+  draft: ContentDraft,
+  ctx?: { req?: NextRequest; workspaceId?: string }
+): Promise<string | undefined> {
   const settings = await getPublishSettingsRemote(ctx ?? {});
   return publishDraftWithSettings(draft, settings);
 }

@@ -22,7 +22,7 @@ export async function getTenantContext(req: NextRequest): Promise<TenantContext 
   const members = await supabaseAdmin<Array<{ user_id: string }>>(
     "workspace_members",
     {},
-    `?workspace_id=eq.${encodeURIComponent(workspaceId)}&user_id=eq.${encodeURIComponent(user.id)}&select=user_id&limit=1`,
+    `?workspace_id=eq.${encodeURIComponent(workspaceId)}&user_id=eq.${encodeURIComponent(user.id)}&select=user_id&limit=1`
   );
   if (!members.length) return null;
 

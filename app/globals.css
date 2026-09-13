@@ -2,11 +2,11 @@
 @import "tailwindcss";
 
 @theme {
-  --color-ink: #132A2E;      /* deep teal-black — signage-board base */
-  --color-signal: #E4A518;   /* marigold/amber — shopfront-signage accent */
-  --color-paper: #F6F2E9;    /* warm paper background */
-  --color-clay: #8C4B2E;     /* secondary warm accent */
-  --color-line: #D8CDB4;     /* hairline / divider on paper */
+  --color-ink: #132a2e; /* deep teal-black — signage-board base */
+  --color-signal: #e4a518; /* marigold/amber — shopfront-signage accent */
+  --color-paper: #f6f2e9; /* warm paper background */
+  --color-clay: #8c4b2e; /* secondary warm accent */
+  --color-line: #d8cdb4; /* hairline / divider on paper */
 
   --font-display: "Noto Nastaliq Urdu", serif;
   --font-head: "Fraunces", serif;
@@ -18,11 +18,11 @@ html {
 }
 
 body {
-  background-color: #F6F2E9;
-  color: #132A2E;
+  background-color: #f6f2e9;
+  color: #132a2e;
 }
 
 .focus-ring:focus-visible {
-  outline: 2px solid #E4A518;
+  outline: 2px solid #e4a518;
   outline-offset: 2px;
 }

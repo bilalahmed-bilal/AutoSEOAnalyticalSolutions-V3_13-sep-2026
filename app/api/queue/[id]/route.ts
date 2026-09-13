@@ -1,14 +1,11 @@
 import { requireApiAccess, unauthorizedResponse } from "@/lib/auth/api-access";
 import { NextRequest, NextResponse } from "next/server";
-import { updateDraftRemote, listDraftsRemote } from "@/lib/store-repository";
+import { updateDraftRemote } from "@/lib/store-repository";
 import { getTenantContext } from "@/lib/tenant";
 import { requireWorkspaceRole, isRoleResult } from "@/lib/auth/rbac";
 import { enqueueJob, publishJobKey } from "@/lib/jobs/queue";
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const access = await requireApiAccess(req);
   if (!access) return unauthorizedResponse();
   if (access.authenticated) {
@@ -16,7 +13,8 @@ export async function PATCH(
     if (!isRoleResult(permission)) return permission;
   }
   const tenant = access.authenticated ? await getTenantContext(req) : null;
-  if (access.authenticated && !tenant) return NextResponse.json({ error: "Valid x-workspace-id required." }, { status: 400 });
+  if (access.authenticated && !tenant)
+    return NextResponse.json({ error: "Valid x-workspace-id required." }, { status: 400 });
 
   const { id } = await params;
 
@@ -30,9 +28,16 @@ export async function PATCH(
     }
 
     if (action === "approve") {
-      const draftBefore = await updateDraftRemote({ req, workspaceId: tenant?.workspaceId }, id, { status: "approved" });
+      const draftBefore = await updateDraftRemote({ req, workspaceId: tenant?.workspaceId }, id, {
+        status: "approved",
+      });
       if (!draftBefore) return NextResponse.json({ error: "Draft nahi mila." }, { status: 404 });
-      if (!tenant?.workspaceId) return NextResponse.json({ draft: draftBefore, queued: false, message: "Demo mode: worker queue ke liye Supabase workspace required hai." });
+      if (!tenant?.workspaceId)
+        return NextResponse.json({
+          draft: draftBefore,
+          queued: false,
+          message: "Demo mode: worker queue ke liye Supabase workspace required hai.",
+        });
 
       const job = await enqueueJob({
         workspaceId: tenant.workspaceId,

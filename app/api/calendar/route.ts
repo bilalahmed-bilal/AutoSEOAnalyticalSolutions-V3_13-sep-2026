@@ -9,7 +9,8 @@ export async function GET(req: NextRequest) {
   const access = await requireApiAccess(req);
   if (!access) return unauthorizedResponse();
   const tenant = access.authenticated ? await getTenantContext(req) : null;
-  if (access.authenticated && !tenant) return NextResponse.json({ error: "Valid x-workspace-id required." }, { status: 400 });
+  if (access.authenticated && !tenant)
+    return NextResponse.json({ error: "Valid x-workspace-id required." }, { status: 400 });
   return NextResponse.json({ items: await listCalendarItemsRemote({ req, workspaceId: tenant?.workspaceId }) });
 }
 
@@ -21,7 +22,8 @@ export async function POST(req: NextRequest) {
     if (!isRoleResult(permission)) return permission;
   }
   const tenant = access.authenticated ? await getTenantContext(req) : null;
-  if (access.authenticated && !tenant) return NextResponse.json({ error: "Valid x-workspace-id required." }, { status: 400 });
+  if (access.authenticated && !tenant)
+    return NextResponse.json({ error: "Valid x-workspace-id required." }, { status: 400 });
   try {
     const { channel, topic, scheduledDate } = (await req.json()) as {
       channel: Channel;
@@ -29,12 +31,12 @@ export async function POST(req: NextRequest) {
       scheduledDate: string;
     };
     if (!channel || !topic || !scheduledDate) {
-      return NextResponse.json(
-        { error: "Channel, topic, aur date sab zaroori hain." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Channel, topic, aur date sab zaroori hain." }, { status: 400 });
     }
-    const item = await addCalendarItemRemote({ req, workspaceId: tenant?.workspaceId }, { channel, topic, scheduledDate });
+    const item = await addCalendarItemRemote(
+      { req, workspaceId: tenant?.workspaceId },
+      { channel, topic, scheduledDate }
+    );
     return NextResponse.json({ item });
   } catch (err) {
     console.error("calendar add error:", err);

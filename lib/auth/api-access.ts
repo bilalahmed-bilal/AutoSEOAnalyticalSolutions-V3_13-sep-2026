@@ -1,6 +1,7 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser, type AuthUser } from "@/lib/auth/supabase";
 import { sameOriginWrite } from "@/lib/security/request";
+import { validateProductionSecurityConfig } from "@/lib/security/config";
 
 export interface ApiAccess {
   user: AuthUser;
@@ -15,6 +16,8 @@ export interface ApiAccess {
  * then requires a verified Supabase bearer token.
  */
 export async function requireApiAccess(req: NextRequest): Promise<ApiAccess | null> {
+  // Fail closed in production before any route-specific work occurs.
+  validateProductionSecurityConfig();
   if (!sameOriginWrite(req)) return null;
   const authRequired = process.env.AUTOSEO_AUTH_REQUIRED === "true";
   const user = await getAuthenticatedUser(req);
@@ -26,8 +29,5 @@ export async function requireApiAccess(req: NextRequest): Promise<ApiAccess | nu
 }
 
 export function unauthorizedResponse() {
-  return Response.json(
-    { error: "Authentication required. Supabase access token bhejein." },
-    { status: 401 }
-  );
+  return NextResponse.json({ error: "Authentication required. Supabase access token bhejein." }, { status: 401 });
 }

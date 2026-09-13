@@ -89,6 +89,14 @@ interface DbShape {
   publishSettings: PublishSettings;
   seoScoreHistory: SeoScoreEntry[];
   calendarItems: CalendarItem[];
+  competitorChannels: CompetitorChannel[];
+}
+
+export interface CompetitorChannel {
+  id: string;
+  platform: "youtube" | "facebook";
+  channelIdOrHandle: string;
+  addedAt: string;
 }
 
 export interface SeoScoreEntry {
@@ -120,6 +128,7 @@ function ensureDb(): DbShape {
       publishSettings: {},
       seoScoreHistory: [],
       calendarItems: [],
+      competitorChannels: [],
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2));
     return initial;
@@ -133,6 +142,7 @@ function ensureDb(): DbShape {
   if (!parsed.publishSettings) parsed.publishSettings = {};
   if (!parsed.seoScoreHistory) parsed.seoScoreHistory = [];
   if (!parsed.calendarItems) parsed.calendarItems = [];
+  if (!parsed.competitorChannels) parsed.competitorChannels = [];
   return parsed;
 }
 
@@ -144,9 +154,7 @@ export function listDrafts(): ContentDraft[] {
   return ensureDb().drafts.slice().reverse(); // newest first
 }
 
-export function addDraft(
-  draft: Omit<ContentDraft, "id" | "status" | "createdAt">
-): ContentDraft {
+export function addDraft(draft: Omit<ContentDraft, "id" | "status" | "createdAt">): ContentDraft {
   const db = ensureDb();
   const newDraft: ContentDraft = {
     ...draft,
@@ -231,12 +239,12 @@ export function getSeoScoreHistory(url?: string): SeoScoreEntry[] {
 }
 
 export function listCalendarItems(): CalendarItem[] {
-  return ensureDb().calendarItems.slice().sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
+  return ensureDb()
+    .calendarItems.slice()
+    .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
 }
 
-export function addCalendarItem(
-  item: Omit<CalendarItem, "id" | "status" | "createdAt">
-): CalendarItem {
+export function addCalendarItem(item: Omit<CalendarItem, "id" | "status" | "createdAt">): CalendarItem {
   const db = ensureDb();
   const newItem: CalendarItem = {
     ...item,
@@ -249,10 +257,7 @@ export function addCalendarItem(
   return newItem;
 }
 
-export function updateCalendarItem(
-  id: string,
-  patch: Partial<CalendarItem>
-): CalendarItem | null {
+export function updateCalendarItem(id: string, patch: Partial<CalendarItem>): CalendarItem | null {
   const db = ensureDb();
   const idx = db.calendarItems.findIndex((c) => c.id === id);
   if (idx === -1) return null;
@@ -263,7 +268,29 @@ export function updateCalendarItem(
 
 export function getDueCalendarItems(): CalendarItem[] {
   const today = new Date().toISOString().slice(0, 10);
-  return ensureDb().calendarItems.filter(
-    (c) => c.status === "planned" && c.scheduledDate <= today
-  );
+  return ensureDb().calendarItems.filter((c) => c.status === "planned" && c.scheduledDate <= today);
+}
+
+export function listCompetitorChannels(platform?: "youtube" | "facebook"): CompetitorChannel[] {
+  const list = ensureDb().competitorChannels;
+  return platform ? list.filter((c) => c.platform === platform) : list;
+}
+
+export function addCompetitorChannel(platform: "youtube" | "facebook", channelIdOrHandle: string): CompetitorChannel {
+  const db = ensureDb();
+  const entry: CompetitorChannel = {
+    id: crypto.randomUUID(),
+    platform,
+    channelIdOrHandle,
+    addedAt: new Date().toISOString(),
+  };
+  db.competitorChannels.push(entry);
+  saveDb(db);
+  return entry;
+}
+
+export function removeCompetitorChannel(id: string) {
+  const db = ensureDb();
+  db.competitorChannels = db.competitorChannels.filter((c) => c.id !== id);
+  saveDb(db);
 }

@@ -8,6 +8,7 @@
 // (see docs/youtube-facebook-setup.md).
 
 import type { YouTubeSettings } from "@/lib/store";
+import { type UnknownRecord } from "@/lib/unknown";
 
 const YT_API = "https://www.googleapis.com/youtube/v3";
 
@@ -27,9 +28,7 @@ export interface YouTubeVideoStats {
   publishedAt: string;
 }
 
-export async function getYouTubeChannelStats(
-  settings: YouTubeSettings
-): Promise<YouTubeChannelStats | null> {
+export async function getYouTubeChannelStats(settings: YouTubeSettings): Promise<YouTubeChannelStats | null> {
   const res = await fetch(`${YT_API}/channels?part=snippet,statistics&mine=true`, {
     headers: { Authorization: `Bearer ${settings.accessToken}` },
     signal: AbortSignal.timeout(10_000),
@@ -51,16 +50,13 @@ export async function getYouTubeVideoStats(
   videoIds: string[]
 ): Promise<YouTubeVideoStats[]> {
   if (videoIds.length === 0) return [];
-  const res = await fetch(
-    `${YT_API}/videos?part=snippet,statistics&id=${videoIds.join(",")}`,
-    {
-      headers: { Authorization: `Bearer ${settings.accessToken}` },
-      signal: AbortSignal.timeout(10_000),
-    }
-  );
+  const res = await fetch(`${YT_API}/videos?part=snippet,statistics&id=${videoIds.join(",")}`, {
+    headers: { Authorization: `Bearer ${settings.accessToken}` },
+    signal: AbortSignal.timeout(10_000),
+  });
   if (!res.ok) return [];
   const data = await res.json();
-  return (data.items || []).map((item: any) => ({
+  return (data.items || []).map((item: UnknownRecord) => ({
     videoId: item.id,
     title: item.snippet.title,
     viewCount: Number(item.statistics.viewCount ?? 0),

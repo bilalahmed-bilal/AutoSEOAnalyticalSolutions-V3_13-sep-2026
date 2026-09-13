@@ -16,9 +16,7 @@ import type { WordPressSettings } from "@/lib/store";
 // where that data goes.
 
 function authHeader(settings: WordPressSettings): string {
-  const token = Buffer.from(
-    `${settings.username}:${settings.applicationPassword}`
-  ).toString("base64");
+  const token = Buffer.from(`${settings.username}:${settings.applicationPassword}`).toString("base64");
   return `Basic ${token}`;
 }
 
@@ -27,9 +25,7 @@ function normalizeSiteUrl(siteUrl: string): string {
   return trimmed.startsWith("http") ? trimmed : `https://${trimmed}`;
 }
 
-export async function testWordPressConnection(
-  settings: WordPressSettings
-): Promise<{ ok: boolean; message: string }> {
+export async function testWordPressConnection(settings: WordPressSettings): Promise<{ ok: boolean; message: string }> {
   try {
     const base = normalizeSiteUrl(settings.siteUrl);
     const res = await fetch(`${base}/wp-json/wp/v2/users/me`, {

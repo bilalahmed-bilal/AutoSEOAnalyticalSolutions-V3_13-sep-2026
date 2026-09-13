@@ -7,11 +7,7 @@ const WINDOW_MS = 60_000;
 const LIMIT = 30;
 
 function getClientKey(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    "unknown"
-  );
+  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
 }
 
 export function checkRateLimit(req: NextRequest, scope = "api") {

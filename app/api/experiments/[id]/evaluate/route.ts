@@ -1,6 +1,46 @@
-import { NextRequest,NextResponse } from "next/server";
-import { requireApiAccess,unauthorizedResponse } from "@/lib/auth/api-access";
-import { requireWorkspaceRole,isRoleResult } from "@/lib/auth/rbac";
-import { getExperiment,listObservations,updateExperiment } from "@/lib/experiments/repository";
+import { NextRequest, NextResponse } from "next/server";
+import { requireApiAccess, unauthorizedResponse } from "@/lib/auth/api-access";
+import { requireWorkspaceRole, isRoleResult } from "@/lib/auth/rbac";
+import { getExperiment, listObservations, updateExperiment } from "@/lib/experiments/repository";
 import { evaluateExperiment } from "@/lib/experiments/statistics";
-export async function POST(req:NextRequest,{params}:{params:Promise<{id:string}>}){const a=await requireApiAccess(req);if(!a)return unauthorizedResponse();if(!a.authenticated)return unauthorizedResponse();const p=await requireWorkspaceRole(req,"editor");if(!isRoleResult(p))return p;const id=(await params).id,e=await getExperiment(p.tenant.workspaceId,id);if(!e)return NextResponse.json({error:"Experiment not found."},{status:404});const obs=await listObservations(p.tenant.workspaceId,id),sum=(v:"a"|"b")=>obs.filter(o=>o.variant===v).reduce((x,o)=>({clicks:x.clicks+o.clicks,impressions:x.impressions+o.impressions,ctr:0,averagePosition:null as number|null}),{clicks:0,impressions:0,ctr:0,averagePosition:null as number|null});const av=sum("a"),bv=sum("b");av.ctr=av.impressions?av.clicks/av.impressions:0;bv.ctr=bv.impressions?bv.clicks/bv.impressions:0;const result=evaluateExperiment(av,bv,{confidenceThreshold:e.confidenceThreshold,minImpressions:e.minImpressions,minClicks:e.minClicks,minAbsoluteCtrLift:e.minAbsoluteCtrLift});const status=result.status as any;const updated=await updateExperiment(p.tenant.workspaceId,id,{status,result: {...result,evaluatedAt:new Date().toISOString()}});return NextResponse.json({experiment:updated,result});}
+import { type UnknownRecord } from "@/lib/unknown";
+
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const a = await requireApiAccess(req);
+  if (!a) return unauthorizedResponse();
+  if (!a.authenticated) return unauthorizedResponse();
+  const p = await requireWorkspaceRole(req, "editor");
+  if (!isRoleResult(p)) return p;
+  const id = (await params).id,
+    e = await getExperiment(p.tenant.workspaceId, id);
+  if (!e) return NextResponse.json({ error: "Experiment not found." }, { status: 404 });
+  const obs = await listObservations(p.tenant.workspaceId, id),
+    sum = (v: "a" | "b") =>
+      obs
+        .filter((o) => o.variant === v)
+        .reduce(
+          (x, o) => ({
+            clicks: x.clicks + o.clicks,
+            impressions: x.impressions + o.impressions,
+            ctr: 0,
+            averagePosition: null as number | null,
+          }),
+          { clicks: 0, impressions: 0, ctr: 0, averagePosition: null as number | null }
+        );
+  const av = sum("a"),
+    bv = sum("b");
+  av.ctr = av.impressions ? av.clicks / av.impressions : 0;
+  bv.ctr = bv.impressions ? bv.clicks / bv.impressions : 0;
+  const result = evaluateExperiment(av, bv, {
+    confidenceThreshold: e.confidenceThreshold,
+    minImpressions: e.minImpressions,
+    minClicks: e.minClicks,
+    minAbsoluteCtrLift: e.minAbsoluteCtrLift,
+  });
+  const status = result.status as UnknownRecord;
+  const updated = await updateExperiment(p.tenant.workspaceId, id, {
+    status,
+    result: { ...result, evaluatedAt: new Date().toISOString() },
+  });
+  return NextResponse.json({ experiment: updated, result });
+}

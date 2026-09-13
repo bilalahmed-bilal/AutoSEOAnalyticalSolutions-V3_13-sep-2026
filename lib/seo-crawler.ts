@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import { assertSafeUrl, safeFetchPage } from "@/lib/security/url-safety";
+import { type UnknownRecord } from "@/lib/unknown";
 
 export interface CrawlResult {
   url: string;
@@ -81,11 +82,11 @@ function extractJsonLdTypes($: cheerio.CheerioAPI): string[] {
       const values = Array.isArray(parsed) ? parsed : [parsed];
       for (const item of values) {
         if (item && typeof item === "object") {
-          const type = (item as any)["@type"];
+          const type = (item as UnknownRecord)["@type"];
           if (typeof type === "string") types.push(type);
           if (Array.isArray(type)) types.push(...type.filter((x): x is string => typeof x === "string"));
-          if (Array.isArray((item as any)["@graph"])) {
-            for (const node of (item as any)["@graph"]) {
+          if (Array.isArray((item as UnknownRecord)["@graph"])) {
+            for (const node of (item as UnknownRecord)["@graph"]) {
               if (typeof node?.["@type"] === "string") types.push(node["@type"]);
             }
           }
@@ -105,14 +106,18 @@ export async function crawlPage(rawUrl: string): Promise<CrawlResult> {
   const $ = cheerio.load(fetched.html);
   const title = $("title").first().text().trim() || null;
   const metaDescription = $('meta[name="description"]').attr("content")?.trim() || null;
-  const h1s = $("h1").map((_, el) => $(el).text().trim()).get().filter(Boolean);
+  const h1s = $("h1")
+    .map((_, el) => $(el).text().trim())
+    .get()
+    .filter(Boolean);
   const images = $("img");
   const links: string[] = [];
   let internalLinkCount = 0;
   let externalLinkCount = 0;
   $("a[href]").each((_, el) => {
     const href = $(el).attr("href") || "";
-    if (href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:") || href.startsWith("javascript:")) return;
+    if (href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:") || href.startsWith("javascript:"))
+      return;
     const linkUrl = normalizeUrl(href, url);
     if (!linkUrl) return;
     links.push(linkUrl);
@@ -121,9 +126,22 @@ export async function crawlPage(rawUrl: string): Promise<CrawlResult> {
       else externalLinkCount++;
     } catch {}
   });
-  const readableText = $("body").clone().find("script,style,noscript,template,svg").remove().end().text().replace(/\s+/g, " ").trim();
-  const headingTexts = $("h1,h2,h3,h4,h5,h6").map((_, el) => $(el).text().replace(/\s+/g, " ").trim()).get().filter(Boolean);
-  const linkAnchors = $("a[href]").map((_, el) => $(el).text().replace(/\s+/g, " ").trim()).get().filter(Boolean);
+  const readableText = $("body")
+    .clone()
+    .find("script,style,noscript,template,svg")
+    .remove()
+    .end()
+    .text()
+    .replace(/\s+/g, " ")
+    .trim();
+  const headingTexts = $("h1,h2,h3,h4,h5,h6")
+    .map((_, el) => $(el).text().replace(/\s+/g, " ").trim())
+    .get()
+    .filter(Boolean);
+  const linkAnchors = $("a[href]")
+    .map((_, el) => $(el).text().replace(/\s+/g, " ").trim())
+    .get()
+    .filter(Boolean);
   const jsonLdTypes = extractJsonLdTypes($);
   const robotsMeta = $('meta[name="robots"]').attr("content")?.trim() || null;
   const canonicalUrl = $('link[rel="canonical"]').attr("href")?.trim() || null;
@@ -133,12 +151,28 @@ export async function crawlPage(rawUrl: string): Promise<CrawlResult> {
     return !src;
   }).length;
   return {
-    url, statusCode: fetched.response.status, contentType, title, titleLength: title?.length ?? 0,
-    metaDescription, metaDescriptionLength: metaDescription?.length ?? 0, h1s, h2Count: $("h2").length,
-    imagesTotal: images.length, imagesMissingAlt: images.toArray().filter((el) => !$(el).attr("alt")?.trim()).length,
-    internalLinkCount, externalLinkCount, wordCount: countWords(readableText), readableText, headingTexts, linkAnchors,
-    hasViewportTag: $('meta[name="viewport"]').length > 0, hasCanonicalTag: Boolean(canonicalUrl), canonicalUrl,
-    robotsMeta, noindex: /\bnoindex\b/i.test(robotsMeta || ""),
+    url,
+    statusCode: fetched.response.status,
+    contentType,
+    title,
+    titleLength: title?.length ?? 0,
+    metaDescription,
+    metaDescriptionLength: metaDescription?.length ?? 0,
+    h1s,
+    h2Count: $("h2").length,
+    imagesTotal: images.length,
+    imagesMissingAlt: images.toArray().filter((el) => !$(el).attr("alt")?.trim()).length,
+    internalLinkCount,
+    externalLinkCount,
+    wordCount: countWords(readableText),
+    readableText,
+    headingTexts,
+    linkAnchors,
+    hasViewportTag: $('meta[name="viewport"]').length > 0,
+    hasCanonicalTag: Boolean(canonicalUrl),
+    canonicalUrl,
+    robotsMeta,
+    noindex: /\bnoindex\b/i.test(robotsMeta || ""),
     ogTitle: $('meta[property="og:title"]').attr("content")?.trim() || null,
     ogDescription: $('meta[property="og:description"]').attr("content")?.trim() || null,
     ogImage: $('meta[property="og:image"]').attr("content")?.trim() || null,
@@ -148,7 +182,9 @@ export async function crawlPage(rawUrl: string): Promise<CrawlResult> {
     twitterImage: $('meta[name="twitter:image"]').attr("content")?.trim() || null,
     hreflangCount: $('link[rel="alternate"][hreflang]').length,
     jsonLdCount: $('script[type="application/ld+json"]').length,
-    jsonLdTypes, brokenImageCount, links: [...new Set(links)],
+    jsonLdTypes,
+    brokenImageCount,
+    links: [...new Set(links)],
   };
 }
 
@@ -164,7 +200,11 @@ async function fetchTextResource(url: string): Promise<{ statusCode: number | nu
       const location = response.headers.get("location");
       if (!location) return { statusCode: response.status, text: null };
       const redirected = await assertSafeUrl(new URL(location, safe).toString());
-      const next = await fetch(redirected, { redirect: "error", headers: { "User-Agent": "AutoSEO-Bot/2.0" }, signal: AbortSignal.timeout(10_000) });
+      const next = await fetch(redirected, {
+        redirect: "error",
+        headers: { "User-Agent": "AutoSEO-Bot/2.0" },
+        signal: AbortSignal.timeout(10_000),
+      });
       if (!next.ok) return { statusCode: next.status, text: null };
       return { statusCode: next.status, text: (await next.text()).slice(0, 2_000_000) };
     }
@@ -177,8 +217,12 @@ async function fetchTextResource(url: string): Promise<{ statusCode: number | nu
 
 function parseSitemapXml(xml: string, baseUrl: string): string[] {
   const $ = cheerio.load(xml, { xmlMode: true });
-  const urls = $("url > loc").map((_, el) => $(el).text().trim()).get();
-  const nested = $("sitemap > loc").map((_, el) => $(el).text().trim()).get();
+  const urls = $("url > loc")
+    .map((_, el) => $(el).text().trim())
+    .get();
+  const nested = $("sitemap > loc")
+    .map((_, el) => $(el).text().trim())
+    .get();
   return [...new Set([...urls, ...nested].map((u) => normalizeUrl(u, baseUrl)).filter((u): u is string => Boolean(u)))];
 }
 

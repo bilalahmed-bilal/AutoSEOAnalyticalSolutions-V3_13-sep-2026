@@ -1208,3 +1208,31 @@ Run `supabase/v35-operating-system.sql` after the V34 SQL migrations.
 
 ## Safety
 The operating system is decision support. It does not autonomously perform destructive changes or publish externally without an explicit workflow/approval path.
+
+## V41 — YouTube Automation Worker
+
+- Added atomic automation run claiming.
+- Added server-side worker execution and bounded retries.
+- Added stale automation-run recovery.
+
+## V42 — YouTube Publishing Reliability & Idempotency
+- Added deterministic provider-state fingerprinting for YouTube metadata updates.
+- Added idempotent fast path and post-failure provider reconciliation.
+- Added post-publish verification and strict video ID validation.
+- Added workspace-scoped `publication_intents` ledger and read-only client RLS policy.
+
+## V43 — YouTube Performance Intelligence
+- Added YouTube Analytics API scope and deep performance metrics.
+- Added video-level analytics and deterministic evidence-based recommendations.
+- Added protected Performance Intelligence UI/API and documentation.
+
+## V44 — YouTube Human Approval & Risk Engine
+- Added deterministic YouTube action risk tiers and approval status decisions.
+- Added workspace-scoped `action_approvals` ledger and admin review APIs.
+- Bulk YouTube optimization is always routed to manual approval.
+- Added V44 Supabase migration and documentation.
+
+
+## V45 — YouTube QA & Regression Baseline
+- Added dependency-free Node.js regression tests for YouTube security and approval boundaries.
+- Added checks for shared auth/workspace guards, same-origin mutations, legacy store bypass, approval gating, critical-action blocking, and RLS protections.

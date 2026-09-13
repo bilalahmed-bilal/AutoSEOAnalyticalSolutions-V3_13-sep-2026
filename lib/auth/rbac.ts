@@ -9,14 +9,14 @@ export async function getWorkspaceRole(workspaceId: string, userId: string): Pro
   const rows = await supabaseAdmin<Array<{ role: WorkspaceRole }>>(
     "workspace_members",
     {},
-    `?workspace_id=eq.${encodeURIComponent(workspaceId)}&user_id=eq.${encodeURIComponent(userId)}&select=role&limit=1`,
+    `?workspace_id=eq.${encodeURIComponent(workspaceId)}&user_id=eq.${encodeURIComponent(userId)}&select=role&limit=1`
   );
   return rows[0]?.role ?? null;
 }
 
 export async function requireWorkspaceRole(
   req: NextRequest,
-  minimum: WorkspaceRole,
+  minimum: WorkspaceRole
 ): Promise<{ tenant: TenantContext; role: WorkspaceRole } | NextResponse> {
   const tenant = await getTenantContext(req);
   if (!tenant) return NextResponse.json({ error: "Valid authenticated workspace required." }, { status: 401 });

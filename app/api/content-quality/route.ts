@@ -3,6 +3,48 @@ import { requireApiAccess, unauthorizedResponse } from "@/lib/auth/api-access";
 import { requireWorkspaceRole, isRoleResult } from "@/lib/auth/rbac";
 import { evaluateContent } from "@/lib/content-quality";
 import { createQualityReport, listQualityReports } from "@/lib/content-quality-repository";
-export const runtime="nodejs";
-export async function GET(req:NextRequest){const a=await requireApiAccess(req);if(!a?.authenticated)return unauthorizedResponse();const p=await requireWorkspaceRole(req,"viewer");if(!isRoleResult(p))return p;const assetId=new URL(req.url).searchParams.get("assetId")||undefined;return NextResponse.json({reports:await listQualityReports({req,workspaceId:p.tenant.workspaceId},assetId)});}
-export async function POST(req:NextRequest){const a=await requireApiAccess(req);if(!a?.authenticated)return unauthorizedResponse();const p=await requireWorkspaceRole(req,"editor");if(!isRoleResult(p))return p;try{const b=await req.json();if(!b.body?.trim())return NextResponse.json({error:"Content body is required."},{status:400});const report=evaluateContent({title:b.title,body:String(b.body),metaDescription:b.metaDescription,keyword:b.keyword,language:b.language,channel:b.channel,referenceTexts:Array.isArray(b.referenceTexts)?b.referenceTexts.map(String).slice(0,5):[],businessFacts:Array.isArray(b.businessFacts)?b.businessFacts.map(String).slice(0,30):[]});const saved=await createQualityReport({req,workspaceId:p.tenant.workspaceId},{assetId:b.assetId,draftId:b.draftId,score:report.score,verdict:report.verdict,report,createdBy:a.user?.id});return NextResponse.json({report,saved},{status:201});}catch(e:any){return NextResponse.json({error:e?.message||"Content quality evaluation failed."},{status:400});}}
+import { errorMessage } from "@/lib/unknown";
+
+export const runtime = "nodejs";
+export async function GET(req: NextRequest) {
+  const a = await requireApiAccess(req);
+  if (!a?.authenticated) return unauthorizedResponse();
+  const p = await requireWorkspaceRole(req, "viewer");
+  if (!isRoleResult(p)) return p;
+  const assetId = new URL(req.url).searchParams.get("assetId") || undefined;
+  return NextResponse.json({ reports: await listQualityReports({ req, workspaceId: p.tenant.workspaceId }, assetId) });
+}
+export async function POST(req: NextRequest) {
+  const a = await requireApiAccess(req);
+  if (!a?.authenticated) return unauthorizedResponse();
+  const p = await requireWorkspaceRole(req, "editor");
+  if (!isRoleResult(p)) return p;
+  try {
+    const b = await req.json();
+    if (!b.body?.trim()) return NextResponse.json({ error: "Content body is required." }, { status: 400 });
+    const report = evaluateContent({
+      title: b.title,
+      body: String(b.body),
+      metaDescription: b.metaDescription,
+      keyword: b.keyword,
+      language: b.language,
+      channel: b.channel,
+      referenceTexts: Array.isArray(b.referenceTexts) ? b.referenceTexts.map(String).slice(0, 5) : [],
+      businessFacts: Array.isArray(b.businessFacts) ? b.businessFacts.map(String).slice(0, 30) : [],
+    });
+    const saved = await createQualityReport(
+      { req, workspaceId: p.tenant.workspaceId },
+      {
+        assetId: b.assetId,
+        draftId: b.draftId,
+        score: report.score,
+        verdict: report.verdict,
+        report,
+        createdBy: a.user?.id,
+      }
+    );
+    return NextResponse.json({ report, saved }, { status: 201 });
+  } catch (e: unknown) {
+    return NextResponse.json({ error: errorMessage(e, "Content quality evaluation failed.") }, { status: 400 });
+  }
+}

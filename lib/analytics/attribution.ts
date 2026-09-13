@@ -1,6 +1,7 @@
 import { getSearchConsoleConnection } from "@/lib/analytics/search-console";
 import { listPublicationHistory } from "@/lib/rollback/history";
 import { supabaseAdmin } from "@/lib/db/supabase-rest";
+import { type UnknownRecord } from "@/lib/unknown";
 
 export interface PeriodMetrics {
   clicks: number;
@@ -24,30 +25,66 @@ export interface AttributionReport {
   caveats: string[];
 }
 
-function dateOnly(d: Date) { return d.toISOString().slice(0, 10); }
-function shift(date: Date, days: number) { return new Date(date.getTime() + days * 86_400_000); }
+function dateOnly(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+function shift(date: Date, days: number) {
+  return new Date(date.getTime() + days * 86_400_000);
+}
 
-async function queryPage(accessToken: string, siteUrl: string, pageUrl: string, startDate: string, endDate: string): Promise<PeriodMetrics> {
+async function queryPage(
+  accessToken: string,
+  siteUrl: string,
+  pageUrl: string,
+  startDate: string,
+  endDate: string
+): Promise<PeriodMetrics> {
   const encoded = encodeURIComponent(siteUrl);
   const res = await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encoded}/searchAnalytics/query`, {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ startDate, endDate, dimensions: ["page"], dimensionFilterGroups: [{ filters: [{ dimension: "page", operator: "equals", expression: pageUrl }] }], rowLimit: 1000 }),
+    body: JSON.stringify({
+      startDate,
+      endDate,
+      dimensions: ["page"],
+      dimensionFilterGroups: [{ filters: [{ dimension: "page", operator: "equals", expression: pageUrl }] }],
+      rowLimit: 1000,
+    }),
     signal: AbortSignal.timeout(15_000),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(`Search Console page analytics request failed (${res.status}).`);
-  let clicks = 0, impressions = 0, weightedPosition = 0;
+  let clicks = 0,
+    impressions = 0,
+    weightedPosition = 0;
   for (const row of Array.isArray(data.rows) ? data.rows : []) {
-    const c = Number(row.clicks || 0), i = Number(row.impressions || 0), p = Number(row.position || 0);
-    clicks += c; impressions += i; weightedPosition += p * i;
+    const c = Number(row.clicks || 0),
+      i = Number(row.impressions || 0),
+      p = Number(row.position || 0);
+    clicks += c;
+    impressions += i;
+    weightedPosition += p * i;
   }
-  return { clicks, impressions, ctr: impressions ? clicks / impressions : 0, averagePosition: impressions ? weightedPosition / impressions : null, startDate, endDate };
+  return {
+    clicks,
+    impressions,
+    ctr: impressions ? clicks / impressions : 0,
+    averagePosition: impressions ? weightedPosition / impressions : null,
+    startDate,
+    endDate,
+  };
 }
 
-export async function buildAttributionReport(workspaceId: string, draftId: string, targetUrl: string): Promise<AttributionReport> {
+export async function buildAttributionReport(
+  workspaceId: string,
+  draftId: string,
+  targetUrl: string
+): Promise<AttributionReport> {
   const history = await listPublicationHistory(workspaceId, draftId);
-  const published = history.filter((h: any) => h.event_type === "published" || h.event_type === "rollback_published").sort((a: any, b: any) => String(a.created_at).localeCompare(String(b.created_at))).pop();
+  const published = history
+    .filter((h: UnknownRecord) => h.event_type === "published" || h.event_type === "rollback_published")
+    .sort((a: UnknownRecord, b: UnknownRecord) => String(a.created_at).localeCompare(String(b.created_at)))
+    .pop();
   if (!published) throw new Error("Is draft ke liye koi successful publication history nahi mili.");
   const publicationDate = new Date(published.created_at);
   const connection = await getSearchConsoleConnection(workspaceId);
@@ -65,23 +102,47 @@ export async function buildAttributionReport(workspaceId: string, draftId: strin
     queryPage(connection.credentials.accessToken, siteUrl, targetUrl, dateOnly(postStart), dateOnly(postEnd)),
   ]);
 
-  let seoScoreBefore: number | null = null, seoScoreAfter: number | null = null;
+  let seoScoreBefore: number | null = null,
+    seoScoreAfter: number | null = null;
   try {
-    const scores = await supabaseAdmin<any[]>("seo_score_history", {}, `?workspace_id=eq.${encodeURIComponent(workspaceId)}&url=eq.${encodeURIComponent(targetUrl)}&created_at=lt.${encodeURIComponent(publicationDate.toISOString())}&order=created_at.desc&limit=1`);
+    const scores = await supabaseAdmin<UnknownRecord[]>(
+      "seo_score_history",
+      {},
+      `?workspace_id=eq.${encodeURIComponent(workspaceId)}&url=eq.${encodeURIComponent(targetUrl)}&created_at=lt.${encodeURIComponent(publicationDate.toISOString())}&order=created_at.desc&limit=1`
+    );
     seoScoreBefore = scores[0]?.score == null ? null : Number(scores[0].score);
-    const after = await supabaseAdmin<any[]>("seo_score_history", {}, `?workspace_id=eq.${encodeURIComponent(workspaceId)}&url=eq.${encodeURIComponent(targetUrl)}&created_at=gte.${encodeURIComponent(publicationDate.toISOString())}&order=created_at.asc&limit=1`);
+    const after = await supabaseAdmin<UnknownRecord[]>(
+      "seo_score_history",
+      {},
+      `?workspace_id=eq.${encodeURIComponent(workspaceId)}&url=eq.${encodeURIComponent(targetUrl)}&created_at=gte.${encodeURIComponent(publicationDate.toISOString())}&order=created_at.asc&limit=1`
+    );
     seoScoreAfter = after[0]?.score == null ? null : Number(after[0].score);
-  } catch { /* score history is supplementary */ }
+  } catch {
+    /* score history is supplementary */
+  }
 
   return {
-    draftId, targetUrl, publicationDate: publicationDate.toISOString(), baseline, postPeriod,
+    draftId,
+    targetUrl,
+    publicationDate: publicationDate.toISOString(),
+    baseline,
+    postPeriod,
     deltas: {
       clicks: postPeriod.clicks - baseline.clicks,
       impressions: postPeriod.impressions - baseline.impressions,
       ctr: postPeriod.ctr - baseline.ctr,
-      averagePosition: baseline.averagePosition != null && postPeriod.averagePosition != null ? postPeriod.averagePosition - baseline.averagePosition : null,
+      averagePosition:
+        baseline.averagePosition != null && postPeriod.averagePosition != null
+          ? postPeriod.averagePosition - baseline.averagePosition
+          : null,
     },
-    seoScoreBefore, seoScoreAfter, interpretation: "correlation_only",
-    caveats: ["Search Console data may be delayed and is not proof that the optimization caused the change.", "Seasonality, algorithm updates, competing pages, links, SERP changes and other factors can affect performance.", "The comparison uses equal 28-day windows with a 3-day publication buffer."],
+    seoScoreBefore,
+    seoScoreAfter,
+    interpretation: "correlation_only",
+    caveats: [
+      "Search Console data may be delayed and is not proof that the optimization caused the change.",
+      "Seasonality, algorithm updates, competing pages, links, SERP changes and other factors can affect performance.",
+      "The comparison uses equal 28-day windows with a 3-day publication buffer.",
+    ],
   };
 }

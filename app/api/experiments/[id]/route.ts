@@ -1,6 +1,35 @@
-import { NextRequest,NextResponse } from "next/server";
-import { requireApiAccess,unauthorizedResponse } from "@/lib/auth/api-access";
-import { requireWorkspaceRole,isRoleResult } from "@/lib/auth/rbac";
-import { getExperiment,listObservations,updateExperiment } from "@/lib/experiments/repository";
-export async function GET(req:NextRequest,{params}:{params:Promise<{id:string}>}){const a=await requireApiAccess(req);if(!a)return unauthorizedResponse();if(!a.authenticated)return unauthorizedResponse();const p=await requireWorkspaceRole(req,"viewer");if(!isRoleResult(p))return p;const id=(await params).id;const e=await getExperiment(p.tenant.workspaceId,id);if(!e)return NextResponse.json({error:"Experiment not found."},{status:404});return NextResponse.json({experiment:e,observations:await listObservations(p.tenant.workspaceId,id)});}
-export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}>}){const a=await requireApiAccess(req);if(!a)return unauthorizedResponse();if(!a.authenticated)return unauthorizedResponse();const p=await requireWorkspaceRole(req,"editor");if(!isRoleResult(p))return p;const id=(await params).id;const e=await getExperiment(p.tenant.workspaceId,id);if(!e)return NextResponse.json({error:"Experiment not found."},{status:404});const b=await req.json();const allowed:[string,string][]=[["status","status"],["variant_a_end","variantAEnd"],["variant_b_end","variantBEnd"]];const patch:Record<string,unknown>={};for(const [db,key] of allowed)if(b[key]!==undefined)patch[db]=b[key];if(!Object.keys(patch).length)return NextResponse.json({error:"No editable fields supplied."},{status:400});return NextResponse.json({experiment:await updateExperiment(p.tenant.workspaceId,id,patch)});}
+import { NextRequest, NextResponse } from "next/server";
+import { requireApiAccess, unauthorizedResponse } from "@/lib/auth/api-access";
+import { requireWorkspaceRole, isRoleResult } from "@/lib/auth/rbac";
+import { getExperiment, listObservations, updateExperiment } from "@/lib/experiments/repository";
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const a = await requireApiAccess(req);
+  if (!a) return unauthorizedResponse();
+  if (!a.authenticated) return unauthorizedResponse();
+  const p = await requireWorkspaceRole(req, "viewer");
+  if (!isRoleResult(p)) return p;
+  const id = (await params).id;
+  const e = await getExperiment(p.tenant.workspaceId, id);
+  if (!e) return NextResponse.json({ error: "Experiment not found." }, { status: 404 });
+  return NextResponse.json({ experiment: e, observations: await listObservations(p.tenant.workspaceId, id) });
+}
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const a = await requireApiAccess(req);
+  if (!a) return unauthorizedResponse();
+  if (!a.authenticated) return unauthorizedResponse();
+  const p = await requireWorkspaceRole(req, "editor");
+  if (!isRoleResult(p)) return p;
+  const id = (await params).id;
+  const e = await getExperiment(p.tenant.workspaceId, id);
+  if (!e) return NextResponse.json({ error: "Experiment not found." }, { status: 404 });
+  const b = await req.json();
+  const allowed: [string, string][] = [
+    ["status", "status"],
+    ["variant_a_end", "variantAEnd"],
+    ["variant_b_end", "variantBEnd"],
+  ];
+  const patch: Record<string, unknown> = {};
+  for (const [db, key] of allowed) if (b[key] !== undefined) patch[db] = b[key];
+  if (!Object.keys(patch).length) return NextResponse.json({ error: "No editable fields supplied." }, { status: 400 });
+  return NextResponse.json({ experiment: await updateExperiment(p.tenant.workspaceId, id, patch) });
+}

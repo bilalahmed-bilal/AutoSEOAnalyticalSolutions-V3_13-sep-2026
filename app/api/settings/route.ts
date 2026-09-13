@@ -17,7 +17,8 @@ export async function GET(req: NextRequest) {
     if (!isRoleResult(permission)) return permission;
   }
   const tenant = access.authenticated ? await getTenantContext(req) : null;
-  if (access.authenticated && !tenant) return NextResponse.json({ error: "Valid x-workspace-id required." }, { status: 400 });
+  if (access.authenticated && !tenant)
+    return NextResponse.json({ error: "Valid x-workspace-id required." }, { status: 400 });
   const settings = await getPublishSettingsRemote({ req, workspaceId: tenant?.workspaceId });
   // Never send secrets back to the client
   return NextResponse.json({
@@ -33,9 +34,7 @@ export async function GET(req: NextRequest) {
           shopDomain: settings.website.shopify?.shopDomain,
         }
       : { connected: false },
-    youtube: settings.youtube
-      ? { connected: true, permission: settings.youtube.permission }
-      : { connected: false },
+    youtube: settings.youtube ? { connected: true, permission: settings.youtube.permission } : { connected: false },
     facebook: settings.facebook
       ? { connected: true, permission: settings.facebook.permission, pageId: settings.facebook.settings.pageId }
       : { connected: false },
@@ -51,13 +50,23 @@ export async function POST(req: NextRequest) {
   }
   try {
     const tenant = access.authenticated ? await getTenantContext(req) : null;
-    if (access.authenticated && !tenant) return NextResponse.json({ error: "Valid x-workspace-id required." }, { status: 400 });
+    if (access.authenticated && !tenant)
+      return NextResponse.json({ error: "Valid x-workspace-id required." }, { status: 400 });
     const body = await req.json();
     const { platform, permission } = body;
     const perm = permission === "auto" ? "auto" : "suggest";
 
     if (platform === "website") {
-      const { platformType, siteUrl, username, applicationPassword, webhookUrl, apiKey, shopDomain, accessToken: shopifyToken } = body;
+      const {
+        platformType,
+        siteUrl,
+        username,
+        applicationPassword,
+        webhookUrl,
+        apiKey,
+        shopDomain,
+        accessToken: shopifyToken,
+      } = body;
 
       if (platformType === "wordpress") {
         if (!siteUrl || !username || !applicationPassword) {
@@ -69,7 +78,10 @@ export async function POST(req: NextRequest) {
         const wordpress = { siteUrl, username, applicationPassword };
         const test = await testWordPressConnection(wordpress);
         if (!test.ok) return NextResponse.json({ error: test.message }, { status: 400 });
-        await savePublishSettingsRemote({ req, workspaceId: tenant?.workspaceId }, { website: { platformType: "wordpress", wordpress, permission: perm } });
+        await savePublishSettingsRemote(
+          { req, workspaceId: tenant?.workspaceId },
+          { website: { platformType: "wordpress", wordpress, permission: perm } }
+        );
         return NextResponse.json({ ok: true, message: test.message });
       }
 
@@ -83,21 +95,24 @@ export async function POST(req: NextRequest) {
         const shopify = { shopDomain, accessToken: shopifyToken };
         const test = await testShopifyConnection(shopify);
         if (!test.ok) return NextResponse.json({ error: test.message }, { status: 400 });
-        await savePublishSettingsRemote({ req, workspaceId: tenant?.workspaceId }, { website: { platformType: "shopify", shopify, permission: perm } });
+        await savePublishSettingsRemote(
+          { req, workspaceId: tenant?.workspaceId },
+          { website: { platformType: "shopify", shopify, permission: perm } }
+        );
         return NextResponse.json({ ok: true, message: test.message });
       }
 
       if (platformType === "custom") {
         if (!webhookUrl || !apiKey) {
-          return NextResponse.json(
-            { error: "Webhook URL aur API key dono zaroori hain." },
-            { status: 400 }
-          );
+          return NextResponse.json({ error: "Webhook URL aur API key dono zaroori hain." }, { status: 400 });
         }
         const custom = { webhookUrl, apiKey };
         const test = await testCustomSiteConnection(custom);
         if (!test.ok) return NextResponse.json({ error: test.message }, { status: 400 });
-        await savePublishSettingsRemote({ req, workspaceId: tenant?.workspaceId }, { website: { platformType: "custom", custom, permission: perm } });
+        await savePublishSettingsRemote(
+          { req, workspaceId: tenant?.workspaceId },
+          { website: { platformType: "custom", custom, permission: perm } }
+        );
         return NextResponse.json({ ok: true, message: test.message });
       }
 
@@ -112,22 +127,25 @@ export async function POST(req: NextRequest) {
       const settings = { accessToken };
       const test = await testYouTubeConnection(settings);
       if (!test.ok) return NextResponse.json({ error: test.message }, { status: 400 });
-      await savePublishSettingsRemote({ req, workspaceId: tenant?.workspaceId }, { youtube: { settings, permission: perm } });
+      await savePublishSettingsRemote(
+        { req, workspaceId: tenant?.workspaceId },
+        { youtube: { settings, permission: perm } }
+      );
       return NextResponse.json({ ok: true, message: test.message });
     }
 
     if (platform === "facebook") {
       const { pageId, pageAccessToken } = body;
       if (!pageId || !pageAccessToken) {
-        return NextResponse.json(
-          { error: "Page ID aur Page Access Token dono zaroori hain." },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: "Page ID aur Page Access Token dono zaroori hain." }, { status: 400 });
       }
       const settings = { pageId, pageAccessToken };
       const test = await testFacebookConnection(settings);
       if (!test.ok) return NextResponse.json({ error: test.message }, { status: 400 });
-      await savePublishSettingsRemote({ req, workspaceId: tenant?.workspaceId }, { facebook: { settings, permission: perm } });
+      await savePublishSettingsRemote(
+        { req, workspaceId: tenant?.workspaceId },
+        { facebook: { settings, permission: perm } }
+      );
       return NextResponse.json({ ok: true, message: test.message });
     }
 

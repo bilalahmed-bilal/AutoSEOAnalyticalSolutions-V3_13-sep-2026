@@ -1,4 +1,3 @@
-
 **Update:** Website is now also grouped by pillar (SEO: 6 tools, Marketing:
 Content Strategy + Content Generator + Publish, Analytics: the shared
 Analytics tab), matching YouTube's structure. Facebook now has its own 8
@@ -19,6 +18,86 @@ Testing, Bulk Video Optimizer, Community Post Generator), and Analytics
 Retention Insights) — matching Section 4.8's TubeBuddy/vidIQ-style feature
 list. These are UI-only placeholders for now; each will get real
 implementation one at a time.
+
+## Facebook: All 12 tabs now fully implemented (not placeholders)
+
+Same treatment as YouTube — Facebook's 8 "Coming Soon" placeholders are now
+real, working tools:
+
+- **Page & Post Discovery Optimization** — fetches the Page's current About
+  text, generates an improved version (Facebook's own discovery + Google
+  indexing of public Pages), and can apply it directly (needs
+  `pages_manage_metadata` permission on the Page token, in addition to
+  `pages_manage_posts`).
+- **Hashtag & Keyword Research** — Claude + live web search for current,
+  genuinely relevant hashtags per niche.
+- **Post A/B Testing** — reuses `generateVariants()` (channel="facebook"),
+  either variant can be sent straight to the approval queue.
+- **Bulk Post Scheduler** — paste up to 10 topics (one per line), generates
+  and queues a post for each — always manual approval (bulk = high-risk).
+- **Comment & Engagement Assistant** — fetches a post's comments, drafts an
+  AI reply per comment on request, and only sends a reply when the user
+  explicitly clicks "Send" per comment (no auto-replying).
+- **Post Performance Analytics** — full view of recent posts' likes/
+  comments/shares with underperforming ones flagged, reusing the Phase 4.5
+  analytics functions.
+- **Competitor Page Tracking** — add any public Page (by ID or username),
+  see follower count, remove when done — mirrors YouTube's competitor
+  tracking (same underlying `CompetitorChannel` store, generic across
+  platforms).
+- **Audience Insights** — **honestly attempts** Meta's remaining
+  `page_fans_gender_age` metric and surfaces a clear message if
+  unavailable, since Meta has significantly restricted/deprecated classic
+  Audience Insights — no fabricated demographic data.
+
+New files: `app/api/facebook-tools/*` (8 new routes), new functions in
+`lib/publishers/facebook.ts` (`fetchPageInfo`, `updatePageInfo`,
+`fetchPostComments`, `replyToComment`, `fetchPublicPageStats`,
+`fetchAudienceInsights`) and `lib/claude.ts` (`generateFacebookHashtags`,
+`generatePageSeoFix`, `generateCommentReply`). Competitor tracking reuses
+the same `lib/store.ts` functions built for YouTube (already
+platform-generic).
+
+## YouTube: All 13 tabs now fully implemented (not placeholders)
+
+Every tab under the YouTube category now has real, working functionality —
+the 10 that were "Coming Soon" placeholders are built out:
+
+- **Keyword Research** — Claude + live web search finds realistically-
+  rankable YouTube search terms for a niche.
+- **Video SEO Studio** — fetches an existing video's current title/
+  description/tags (`fetchVideoSnippet`), generates an improved version,
+  sends it through the existing Publish/approval pipeline.
+- **Tag Generator** — 12-15 relevant tags for any topic, copy-to-clipboard.
+- **Channel Audit** — lists the channel's videos (via the uploads playlist)
+  and flags ones performing well below the channel's own average.
+- **Thumbnail & Title A/B Testing** — reuses `generateVariants()` (Phase 5)
+  to produce two distinct titles; either can be sent to an existing video ID.
+- **Bulk Video Optimizer** — select multiple videos, generate fixes for all
+  of them, and queue them — bulk changes always go through manual approval
+  regardless of the auto-publish setting (Section 3's risk-tier principle).
+- **Community Post Generator** — generates post text/polls; **honestly
+  limited to generation only**, since YouTube has no public API for posting
+  to the Community tab — the user copies it in manually.
+- **Video Performance Analytics** — full sortable view of the channel's
+  videos with view/like/comment counts and totals/averages.
+- **Competitor Channel Tracking** — add any public channel (by ID or
+  @handle), see its subscriber/view/video counts, remove when done.
+- **Watch Time & Retention Insights** — attempts a real YouTube Analytics
+  API v2 call; **honestly surfaces a clear error** if the connected token
+  lacks the `yt-analytics.readonly` scope (which Phase 4's setup doesn't
+  request by default) rather than showing fake data.
+
+New files: `app/api/youtube-tools/*` (9 new routes), new functions added to
+`lib/publishers/youtube.ts` (`fetchVideoSnippet`, `listChannelVideos`,
+`fetchPublicChannelStats`, `fetchRetentionInsights`) and `lib/claude.ts`
+(`generateYouTubeKeywords`, `generateYouTubeTags`, `generateYouTubeSeoFix`,
+`generateCommunityPost`), and `lib/store.ts` gained competitor-channel
+tracking (`CompetitorChannel`, `listCompetitorChannels`,
+`addCompetitorChannel`, `removeCompetitorChannel`).
+
+**Facebook's equivalent 8 tabs are still placeholders** — Facebook wasn't
+part of this pass; the same build-out pattern applies whenever that's next.
 
 ## Navigation: Channel-first (Website / YouTube / Facebook / Overview)
 
@@ -48,12 +127,14 @@ equivalent Facebook-specific tools) is the natural next step to balance this
 out, given the stated focus on YouTube/Facebook management.
 
 ## V17 Content & Semantic Intelligence
+
 - Readable page-content extraction
 - Actual keyword occurrence/density analysis
 - Semantic term and lightweight entity signals
 - Search-intent-aware topic gaps
 - Internal-link opportunity signals
 - Deterministic content intelligence API at `/api/content-intelligence`
+
 # AutoSEO V10
 
 # AutoSEO — Phase 1-5 + Advanced SEO Fixing + Shopify (Full Build)
@@ -87,6 +168,7 @@ token) and pastes it into the Publish tab's new "Shopify" option, alongside
 
 The SEO Analyzer tab now has a **"Fixes Generate کریں"** button after any
 analysis. It produces concrete, ready-to-use values for the issues found:
+
 - A corrected title and meta description
 - Suggested H2 headings
 - A schema.org JSON-LD snippet
@@ -121,7 +203,6 @@ where users won't want to expose their whole site.
 React 19, TypeScript, Tailwind CSS v4 (CSS-first config via `@theme` in
 `app/globals.css` — there is no `tailwind.config.js` in v4), Anthropic SDK,
 cheerio (HTML parsing for the SEO crawler).
-
 
 ## V2 hardening update (September 2026)
 
@@ -284,6 +365,7 @@ All 5 roadmap phases now have working code (Section 6 of the Master
 Requirements Document marks each as built, with honest scope notes on what's
 simplified). From here, the work is **hardening and depth**, not new
 architecture:
+
 1. Move `data/db.json` to Postgres and add auth (multi-tenant readiness) —
    this unblocks actually onboarding subscribers.
 2. Build the real OAuth "Connect with Google/Facebook" flow with token
@@ -293,7 +375,6 @@ architecture:
 4. Add image generation (Section 4.4).
 5. Wire A/B testing to auto-compare via Analytics data, and add real cron
    for the Content Calendar.
-
 
 ## V3 Production Foundation
 
@@ -308,6 +389,7 @@ V4 adds production-facing API authentication enforcement and a Supabase-backed w
 V5 adds workspace-scoped Supabase/Postgres persistence for drafts, SEO score history, publishing connections and calendar items. Configure Supabase and `AUTOSEO_AUTH_REQUIRED=true` to activate the production path; local JSON remains a development fallback. See `docs/V5-SUPABASE-DATA-LAYER.md`.
 
 ## V6 — Durable publishing queue
+
 V6 adds a Supabase-backed durable job queue, atomic job claiming, idempotent publish jobs, retry/backoff handling, and a worker endpoint. Apply `supabase/v6-queue.sql` after the main schema and configure `AUTOSEO_WORKER_SECRET`. A scheduler/cron must invoke the worker endpoint in production.
 
 ## V8 — SaaS Dashboard & Workspace Control Plane
@@ -327,19 +409,18 @@ V10 adds canonical owner/admin/editor/viewer authorization, server-side workspac
 V11 hardens the persistence layer with database-level invariants and operational history. Apply `supabase/v11-data-integrity.sql` after the V10 migration. It adds atomic workspace creation, one-owner-per-workspace protection, immutable audit logs, job lifecycle guards, stale-lock recovery, job attempt history, and duplicate active publish-job protection. See `docs/V11-DATA-INTEGRITY.md` for migration and preflight checks.
 
 ## V13 Provider Lifecycle
-V13 adds OAuth token refresh for Google/YouTube, provider health-state persistence, worker health checks, admin revoke/reconnect lifecycle, and database protection against duplicate active provider connections.
 
+V13 adds OAuth token refresh for Google/YouTube, provider health-state persistence, worker health checks, admin revoke/reconnect lifecycle, and database protection against duplicate active provider connections.
 
 ## V14 — SEO Intelligence Engine
 
 V14 adds a bounded multi-page site audit with robots.txt, XML sitemap, canonical, noindex, hreflang, Open Graph, Twitter/X cards, JSON-LD, broken-link, duplicate metadata, image-source and deterministic site-level SEO checks. Use `POST /api/site-audit` with a URL and optional `maxPages` (1–50). The crawler remains protected by the existing SSRF-safe URL fetcher and only follows same-host URLs. See `docs/V14-SEO-INTELLIGENCE.md`.
 
-
 ## V15 — Keyword & Content Intelligence
+
 - Deterministic target-keyword analysis via `/api/keyword-intelligence`.
 - Search-intent signal, title/meta/H1 alignment, heading coverage, URL alignment, content-length and internal-link signals.
 - Prioritized keyword issues and recommendations.
-
 
 ## V17
 
@@ -349,6 +430,6 @@ AI-assisted SEO optimization preview: `/api/optimize-content`. The optimizer use
 
 V18 adds human-in-the-loop draft versioning, selective field approval/rejection, immutable version history, and approval-to-durable-publish queue integration. See `docs/V18-OPTIMIZATION-VERSIONING.md` and run `supabase/v18-optimization-versioning.sql`.
 
-
 ## V19 — Rollback & Change Management
+
 V19 adds immutable publication snapshots, human-initiated rollback versions, rollback-to-durable-queue flow, and publication history. Apply `supabase/v19-rollback.sql` after V18. See `docs/V19-ROLLBACK-CHANGE-MANAGEMENT.md`.

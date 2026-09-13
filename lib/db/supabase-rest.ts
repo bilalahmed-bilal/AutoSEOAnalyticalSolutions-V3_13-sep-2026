@@ -8,12 +8,7 @@ function baseUrl() {
   return process.env.NEXT_PUBLIC_SUPABASE_URL!.replace(/\/$/, "");
 }
 
-export async function supabaseRest<T>(
-  req: NextRequest,
-  table: string,
-  init: RequestInit = {},
-  query = ""
-): Promise<T> {
+export async function supabaseRest<T>(req: NextRequest, table: string, init: RequestInit = {}, query = ""): Promise<T> {
   const token = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!token) throw new Error("Authentication required for database access.");
   const headers = new Headers(init.headers);

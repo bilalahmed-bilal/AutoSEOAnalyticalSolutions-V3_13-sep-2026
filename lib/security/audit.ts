@@ -1,7 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export type AuditAction = "seo_analysis" | "settings_change" | "draft_create" | "draft_publish" | "draft_reject" | "calendar_run" | "site_audit" | "content_intelligence" | "content_optimization";
+export type AuditAction =
+  | "seo_analysis"
+  | "settings_change"
+  | "draft_create"
+  | "draft_publish"
+  | "draft_reject"
+  | "calendar_run"
+  | "site_audit"
+  | "content_intelligence"
+  | "content_optimization";
 
 interface AuditEntry {
   id: string;

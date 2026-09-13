@@ -7,6 +7,7 @@
 // documented future upgrade (see docs/youtube-facebook-setup.md).
 
 import type { FacebookSettings } from "@/lib/store";
+import { type UnknownRecord } from "@/lib/unknown";
 
 const GRAPH_API = "https://graph.facebook.com/v20.0";
 
@@ -24,9 +25,7 @@ export interface FacebookPostStats {
   shareCount: number;
 }
 
-export async function getFacebookPageStats(
-  settings: FacebookSettings
-): Promise<FacebookPageStats | null> {
+export async function getFacebookPageStats(settings: FacebookSettings): Promise<FacebookPageStats | null> {
   const res = await fetch(
     `${GRAPH_API}/${settings.pageId}?fields=name,fan_count&access_token=${settings.pageAccessToken}`,
     { signal: AbortSignal.timeout(10_000) }
@@ -36,19 +35,15 @@ export async function getFacebookPageStats(
   return { pageName: data.name, fanCount: Number(data.fan_count ?? 0) };
 }
 
-export async function getFacebookRecentPosts(
-  settings: FacebookSettings,
-  limit = 10
-): Promise<FacebookPostStats[]> {
-  const fields =
-    "message,created_time,likes.summary(true),comments.summary(true),shares";
+export async function getFacebookRecentPosts(settings: FacebookSettings, limit = 10): Promise<FacebookPostStats[]> {
+  const fields = "message,created_time,likes.summary(true),comments.summary(true),shares";
   const res = await fetch(
     `${GRAPH_API}/${settings.pageId}/posts?fields=${fields}&limit=${limit}&access_token=${settings.pageAccessToken}`,
     { signal: AbortSignal.timeout(10_000) }
   );
   if (!res.ok) return [];
   const data = await res.json();
-  return (data.data || []).map((post: any) => ({
+  return (data.data || []).map((post: UnknownRecord) => ({
     postId: post.id,
     message: post.message || "(no text)",
     createdTime: post.created_time,

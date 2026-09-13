@@ -30,7 +30,11 @@ export function buildInitialDecisions(original: OptimizedSnapshot, optimized: Op
   }));
 }
 
-export function applyDecisions(original: OptimizedSnapshot, optimized: OptimizedSnapshot, decisions: ChangeDecision[]): OptimizedSnapshot {
+export function applyDecisions(
+  original: OptimizedSnapshot,
+  optimized: OptimizedSnapshot,
+  decisions: ChangeDecision[]
+): OptimizedSnapshot {
   const accepted = new Set(decisions.filter((d) => d.accepted).map((d) => d.field));
   return (Object.keys(original) as OptimizationField[]).reduce((out, field) => {
     out[field] = accepted.has(field) ? optimized[field] : original[field];

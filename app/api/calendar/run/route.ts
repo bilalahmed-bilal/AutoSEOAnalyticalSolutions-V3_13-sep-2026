@@ -1,10 +1,17 @@
 import { requireApiAccess, unauthorizedResponse } from "@/lib/auth/api-access";
 import { NextRequest, NextResponse } from "next/server";
-import { getDueCalendarItemsRemote, updateCalendarItemRemote, addDraftRemote, updateDraftRemote, getPublishSettingsRemote } from "@/lib/store-repository";
+import {
+  getDueCalendarItemsRemote,
+  updateCalendarItemRemote,
+  addDraftRemote,
+  updateDraftRemote,
+  getPublishSettingsRemote,
+} from "@/lib/store-repository";
 import { getTenantContext } from "@/lib/tenant";
 import { requireWorkspaceRole, isRoleResult } from "@/lib/auth/rbac";
 import { generateContent, type BusinessProfile, type Language } from "@/lib/claude";
 import { publishDraftToChannel } from "@/lib/publish-dispatch";
+import { errorMessage } from "@/lib/unknown";
 
 // This route stands in for a real cron/scheduler in production — Next.js's
 // dev server has no persistent background worker, so "automation" here means
@@ -20,7 +27,8 @@ export async function POST(req: NextRequest) {
     if (!isRoleResult(permission)) return permission;
   }
   const tenant = access.authenticated ? await getTenantContext(req) : null;
-  if (access.authenticated && !tenant) return NextResponse.json({ error: "Valid x-workspace-id required." }, { status: 400 });
+  if (access.authenticated && !tenant)
+    return NextResponse.json({ error: "Valid x-workspace-id required." }, { status: 400 });
   try {
     const { profile, language } = (await req.json()) as {
       profile: BusinessProfile;
@@ -28,10 +36,7 @@ export async function POST(req: NextRequest) {
     };
 
     if (!profile?.businessName) {
-      return NextResponse.json(
-        { error: "Business profile chahiye content generate karne ke liye." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Business profile chahiye content generate karne ke liye." }, { status: 400 });
     }
 
     const due = await getDueCalendarItemsRemote({ req, workspaceId: tenant?.workspaceId });
@@ -55,37 +60,50 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        const draft = await addDraftRemote({ req, workspaceId: tenant?.workspaceId }, {
-          channel: item.channel,
-          kind: "new_content",
-          title: content.title,
-          body: content.body,
-          metaDescription:
-            content.metaDescription || (content.hashtags ? content.hashtags.join(", ") : undefined),
-        });
+        const draft = await addDraftRemote(
+          { req, workspaceId: tenant?.workspaceId },
+          {
+            channel: item.channel,
+            kind: "new_content",
+            title: content.title,
+            body: content.body,
+            metaDescription: content.metaDescription || (content.hashtags ? content.hashtags.join(", ") : undefined),
+          }
+        );
 
         const settings = await getPublishSettingsRemote({ req, workspaceId: tenant?.workspaceId });
-        const permission =
-          item.channel === "website" ? settings.website?.permission : settings.facebook?.permission;
+        const permission = item.channel === "website" ? settings.website?.permission : settings.facebook?.permission;
 
         if (permission === "auto") {
           await updateDraftRemote({ req, workspaceId: tenant?.workspaceId }, draft.id, { status: "approved" });
           try {
-            const link = await publishDraftToChannel({ ...draft, status: "approved" }, { req, workspaceId: tenant?.workspaceId });
-            await updateDraftRemote({ req, workspaceId: tenant?.workspaceId }, draft.id, { status: "published", publishedUrl: link });
-          } catch (pubErr: any) {
-            await updateDraftRemote({ req, workspaceId: tenant?.workspaceId }, draft.id, { status: "failed", errorMessage: pubErr.message });
+            const link = await publishDraftToChannel(
+              { ...draft, status: "approved" },
+              { req, workspaceId: tenant?.workspaceId }
+            );
+            await updateDraftRemote({ req, workspaceId: tenant?.workspaceId }, draft.id, {
+              status: "published",
+              publishedUrl: link,
+            });
+          } catch (pubErr: unknown) {
+            await updateDraftRemote({ req, workspaceId: tenant?.workspaceId }, draft.id, {
+              status: "failed",
+              errorMessage: errorMessage(pubErr),
+            });
           }
         }
 
-        await updateCalendarItemRemote({ req, workspaceId: tenant?.workspaceId }, item.id, { status: "generated", resultDraftId: draft.id });
+        await updateCalendarItemRemote({ req, workspaceId: tenant?.workspaceId }, item.id, {
+          status: "generated",
+          resultDraftId: draft.id,
+        });
         results.push({ item: item.id, status: "generated", draftId: draft.id });
-      } catch (genErr: any) {
+      } catch (genErr: unknown) {
         await updateCalendarItemRemote({ req, workspaceId: tenant?.workspaceId }, item.id, {
           status: "failed",
-          errorMessage: genErr.message || "Generation fail ho gaya.",
+          errorMessage: errorMessage(genErr, "Generation fail ho gaya."),
         });
-        results.push({ item: item.id, status: "failed", error: genErr.message });
+        results.push({ item: item.id, status: "failed", error: errorMessage(genErr) });
       }
     }
 

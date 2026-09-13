@@ -4,5 +4,46 @@ import { requireWorkspaceRole, isRoleResult } from "@/lib/auth/rbac";
 import { createExperiment, listExperiments } from "@/lib/experiments/repository";
 import { getDraftVersionRemote } from "@/lib/store-repository";
 
-export async function GET(req:NextRequest){const access=await requireApiAccess(req);if(!access)return unauthorizedResponse();if(!access.authenticated)return NextResponse.json({experiments:[]});const p=await requireWorkspaceRole(req,"viewer");if(!isRoleResult(p))return p;return NextResponse.json({experiments:await listExperiments(p.tenant.workspaceId)});}
-export async function POST(req:NextRequest){const access=await requireApiAccess(req);if(!access)return unauthorizedResponse();if(!access.authenticated)return unauthorizedResponse();const p=await requireWorkspaceRole(req,"editor");if(!isRoleResult(p))return p;const b=await req.json();const draftId=String(b.draftId||"").trim(),targetUrl=String(b.targetUrl||"").trim(),aId=String(b.variantAVersionId||"").trim(),bId=String(b.variantBVersionId||"").trim();if(!draftId||!targetUrl||!aId||!bId||aId===bId)return NextResponse.json({error:"draftId, targetUrl, two different variant version IDs are required."},{status:400});const a=await getDraftVersionRemote({req,workspaceId:p.tenant.workspaceId},aId),v=await getDraftVersionRemote({req,workspaceId:p.tenant.workspaceId},bId);if(!a||!v||a.draftId!==draftId||v.draftId!==draftId)return NextResponse.json({error:"Both variant versions must belong to the selected draft."},{status:400});const exp=await createExperiment({workspaceId:p.tenant.workspaceId,draftId,targetUrl,variantAVersionId:aId,variantBVersionId:bId,metric:b.metric,minImpressions:Number(b.minImpressions||100),minClicks:Number(b.minClicks||10),confidenceThreshold:Number(b.confidenceThreshold||0.95),minAbsoluteCtrLift:Number(b.minAbsoluteCtrLift||0.01),createdBy:p.tenant.user.id});return NextResponse.json({experiment:exp},{status:201});}
+export async function GET(req: NextRequest) {
+  const access = await requireApiAccess(req);
+  if (!access) return unauthorizedResponse();
+  if (!access.authenticated) return NextResponse.json({ experiments: [] });
+  const p = await requireWorkspaceRole(req, "viewer");
+  if (!isRoleResult(p)) return p;
+  return NextResponse.json({ experiments: await listExperiments(p.tenant.workspaceId) });
+}
+export async function POST(req: NextRequest) {
+  const access = await requireApiAccess(req);
+  if (!access) return unauthorizedResponse();
+  if (!access.authenticated) return unauthorizedResponse();
+  const p = await requireWorkspaceRole(req, "editor");
+  if (!isRoleResult(p)) return p;
+  const b = await req.json();
+  const draftId = String(b.draftId || "").trim(),
+    targetUrl = String(b.targetUrl || "").trim(),
+    aId = String(b.variantAVersionId || "").trim(),
+    bId = String(b.variantBVersionId || "").trim();
+  if (!draftId || !targetUrl || !aId || !bId || aId === bId)
+    return NextResponse.json(
+      { error: "draftId, targetUrl, two different variant version IDs are required." },
+      { status: 400 }
+    );
+  const a = await getDraftVersionRemote({ req, workspaceId: p.tenant.workspaceId }, aId),
+    v = await getDraftVersionRemote({ req, workspaceId: p.tenant.workspaceId }, bId);
+  if (!a || !v || a.draftId !== draftId || v.draftId !== draftId)
+    return NextResponse.json({ error: "Both variant versions must belong to the selected draft." }, { status: 400 });
+  const exp = await createExperiment({
+    workspaceId: p.tenant.workspaceId,
+    draftId,
+    targetUrl,
+    variantAVersionId: aId,
+    variantBVersionId: bId,
+    metric: b.metric,
+    minImpressions: Number(b.minImpressions || 100),
+    minClicks: Number(b.minClicks || 10),
+    confidenceThreshold: Number(b.confidenceThreshold || 0.95),
+    minAbsoluteCtrLift: Number(b.minAbsoluteCtrLift || 0.01),
+    createdBy: p.tenant.user.id,
+  });
+  return NextResponse.json({ experiment: exp }, { status: 201 });
+}

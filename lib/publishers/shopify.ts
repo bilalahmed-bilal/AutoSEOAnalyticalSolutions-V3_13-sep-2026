@@ -32,7 +32,10 @@ export interface ShopifySettings {
 const API_VERSION = "2025-01";
 
 function normalizeShopDomain(domain: string): string {
-  return domain.trim().replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  return domain
+    .trim()
+    .replace(/^https?:\/\//, "")
+    .replace(/\/+$/, "");
 }
 
 function apiUrl(settings: ShopifySettings, path: string): string {
@@ -46,9 +49,7 @@ function headers(settings: ShopifySettings) {
   };
 }
 
-export async function testShopifyConnection(
-  settings: ShopifySettings
-): Promise<{ ok: boolean; message: string }> {
+export async function testShopifyConnection(settings: ShopifySettings): Promise<{ ok: boolean; message: string }> {
   try {
     const res = await fetch(apiUrl(settings, "/shop.json"), {
       headers: headers(settings),
@@ -108,11 +109,7 @@ export async function publishToShopify(
   };
 }
 
-async function setPageMetaDescription(
-  settings: ShopifySettings,
-  pageId: number,
-  metaDescription: string
-) {
+async function setPageMetaDescription(settings: ShopifySettings, pageId: number, metaDescription: string) {
   const res = await fetch(apiUrl(settings, `/pages/${pageId}/metafields.json`), {
     method: "POST",
     headers: headers(settings),

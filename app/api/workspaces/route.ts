@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth/supabase";
 import { supabaseRpc } from "@/lib/db/supabase-rpc";
 import { checkRateLimit } from "@/lib/security/rate-limit";
+import { errorMessage } from "@/lib/unknown";
 
 export const runtime = "nodejs";
 
@@ -13,14 +14,12 @@ function supabaseConfig() {
   return { url: url.replace(/\/$/, ""), anonKey, serviceRole };
 }
 
-async function supabaseRest(
-  req: NextRequest,
-  path: string,
-  init: RequestInit = {},
-  useServiceRole = false,
-) {
+async function supabaseRest(req: NextRequest, path: string, init: RequestInit = {}, useServiceRole = false) {
   const { url, anonKey, serviceRole } = supabaseConfig();
-  const token = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
+  const token = req.headers
+    .get("authorization")
+    ?.replace(/^Bearer\s+/i, "")
+    .trim();
   const key = useServiceRole ? serviceRole : anonKey;
   if (!key) throw new Error("Supabase service role key configured nahi hai.");
 
@@ -52,10 +51,11 @@ export async function GET(req: NextRequest) {
   try {
     const response = await supabaseRest(
       req,
-      `workspace_members?user_id=eq.${encodeURIComponent(user.id)}&select=role,workspace:workspaces(id,name,slug,created_at)&order=created_at.asc`,
+      `workspace_members?user_id=eq.${encodeURIComponent(user.id)}&select=role,workspace:workspaces(id,name,slug,created_at)&order=created_at.asc`
     );
     const text = await response.text();
-    if (!response.ok) return NextResponse.json({ error: "Workspaces load nahi ho sakin.", details: text }, { status: response.status });
+    if (!response.ok)
+      return NextResponse.json({ error: "Workspaces load nahi ho sakin.", details: text }, { status: response.status });
     const rows = JSON.parse(text) as Array<{ role: string; workspace: unknown }>;
     return NextResponse.json({
       workspaces: rows.map((row) => ({ ...(row.workspace as object), role: row.role })),
@@ -86,16 +86,23 @@ export async function POST(req: NextRequest) {
     const workspace = await supabaseRpc<Array<{ id: string; name: string; slug: string; created_at: string }>>(
       req,
       "create_workspace_atomic",
-      { workspace_name: name, workspace_slug: slug },
+      { workspace_name: name, workspace_slug: slug }
     );
     const created = Array.isArray(workspace) ? workspace[0] : workspace;
     if (!created?.id) return NextResponse.json({ error: "Workspace ID return nahi hui." }, { status: 500 });
 
     return NextResponse.json({ workspace: { ...created, role: "owner" } }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("workspace create error:", error);
-    const message = String(error?.message || "Workspace create nahi ho saka.");
-    const status = /duplicate|unique/i.test(message) ? 409 : /invalid workspace|invalid workspace slug/i.test(message) ? 400 : 500;
-    return NextResponse.json({ error: status === 409 ? "Workspace slug already use ho raha hai." : "Workspace create nahi ho saka." }, { status });
+    const message = String(errorMessage(error, "Workspace create nahi ho saka."));
+    const status = /duplicate|unique/i.test(message)
+      ? 409
+      : /invalid workspace|invalid workspace slug/i.test(message)
+        ? 400
+        : 500;
+    return NextResponse.json(
+      { error: status === 409 ? "Workspace slug already use ho raha hai." : "Workspace create nahi ho saka." },
+      { status }
+    );
   }
 }
