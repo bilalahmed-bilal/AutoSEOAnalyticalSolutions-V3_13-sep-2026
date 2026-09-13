@@ -3,10 +3,11 @@ import { requireYouTubeAccess, isYouTubeSecurityContext } from "@/lib/youtube-se
 import { sameOriginWrite } from "@/lib/security/request";
 import { fetchRetentionInsights } from "@/lib/publishers/youtube";
 import { errorMessage } from "@/lib/unknown";
+import { YouTubeAnalyticsAuthorizationError } from "@/lib/oauth/config";
 
 export async function POST(req: NextRequest) {
   if (!sameOriginWrite(req)) return NextResponse.json({ error: "Cross-origin request blocked." }, { status: 403 });
-  const access = await requireYouTubeAccess(req, "viewer");
+  const access = await requireYouTubeAccess(req, "viewer", "youtube.analytics");
   if (!isYouTubeSecurityContext(access)) return access;
   try {
     const { videoId } = (await req.json()) as { videoId?: string };
@@ -16,6 +17,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ insights });
   } catch (err: unknown) {
     console.error("retention error:", err);
-    return NextResponse.json({ error: errorMessage(err, "Retention data nahi mil saka.") }, { status: 500 });
+    const status = err instanceof YouTubeAnalyticsAuthorizationError ? 403 : 500;
+    return NextResponse.json({ error: errorMessage(err, "Retention data nahi mil saka.") }, { status });
   }
 }

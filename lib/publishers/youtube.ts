@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { type UnknownRecord } from "@/lib/unknown";
+import { YouTubeAnalyticsAuthorizationError, assertYouTubeAnalyticsAuthorized } from "@/lib/oauth/config";
 
 // Third publish adapter (same pattern as wordpress.ts / custom-site.ts).
 //
@@ -12,15 +13,13 @@ import { type UnknownRecord } from "@/lib/unknown";
 // they're re-optimizing — this covers the TubeBuddy/vidIQ "SEO Studio"
 // use case from Section 4.8 well). True auto-upload is a future extension.
 //
-// AUTH NOTE: this adapter expects an OAuth 2.0 access token with the
-// youtube.force-ssl scope, already obtained. Getting that token requires
-// registering an app in Google Cloud Console and completing the OAuth
-// consent flow — that setup happens outside this codebase (see
-// docs/youtube-facebook-setup.md). This file assumes you already have a
-// valid token to pass in.
+// AUTH NOTE: this adapter expects a workspace YouTube connection obtained
+// through in-app Google OAuth (`/api/oauth/google-youtube`), stored as
+// connections.provider = "youtube". See docs/INTEGRATIONS.md.
 
 export interface YouTubeSettings {
   accessToken: string;
+  scope?: string;
 }
 
 const YT_API = "https://www.googleapis.com/youtube/v3";
@@ -135,8 +134,6 @@ export async function updateYouTubeVideo(
   });
 
   if (!res.ok) {
-    const errText = await res.text();
-
     // The PUT may have succeeded at Google but the response may have been
     // lost. Reconcile the provider state before reporting a retryable failure.
     try {
@@ -149,10 +146,10 @@ export async function updateYouTubeVideo(
         };
       }
     } catch {
-      // Preserve the original provider error; the durable job worker may retry.
+      // Keep the original failure status; the durable job worker may retry.
     }
 
-    throw new Error(`YouTube update failed (status ${res.status}): ${errText}`);
+    throw new Error(`YouTube update failed (status ${res.status}).`);
   }
 
   // Post-publish verification protects against accepting an incomplete/altered
@@ -279,11 +276,10 @@ export async function fetchPublicChannelStats(
   };
 }
 
-// YouTube Analytics API (v2) — genuinely different from the Data API v3 used
-// everywhere else in this adapter, and requires an ADDITIONAL OAuth scope
-// (yt-analytics.readonly) beyond youtube.force-ssl. If the token doesn't have
-// that scope, this throws a clear, actionable error rather than silently
-// returning fake/zero data.
+// YouTube Analytics API (v2) — different from Data API v3. Requires
+// yt-analytics.readonly in addition to youtube.force-ssl. Tokens that were
+// authorized without Analytics access must reconnect via in-app Google OAuth.
+// This throws instead of returning fake/zero data.
 export interface RetentionInsights {
   averageViewDurationSeconds: number;
   averageViewPercentage: number;
@@ -291,6 +287,7 @@ export interface RetentionInsights {
 }
 
 export async function fetchRetentionInsights(settings: YouTubeSettings, videoId: string): Promise<RetentionInsights> {
+  assertYouTubeAnalyticsAuthorized(settings.scope);
   const endDate = new Date().toISOString().slice(0, 10);
   const startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const url =
@@ -305,12 +302,10 @@ export async function fetchRetentionInsights(settings: YouTubeSettings, videoId:
   });
 
   if (res.status === 403 || res.status === 401) {
-    throw new Error(
-      "Ye data lene ke liye access token mein 'yt-analytics.readonly' scope chahiye — abhi wala token sirf 'youtube.force-ssl' scope ke sath hai. OAuth Playground mein dono scopes select kar ke naya token banayein (docs/youtube-facebook-setup.md dekhein)."
-    );
+    throw new YouTubeAnalyticsAuthorizationError();
   }
   if (!res.ok) {
-    throw new Error(`Analytics fetch failed (status ${res.status}).`);
+    throw new Error("YouTube Analytics could not return retention data for this video.");
   }
   const data = await res.json();
   const row = data.rows?.[0];

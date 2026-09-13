@@ -143,16 +143,16 @@ Publisher gaps: user-controlled webhook/site/shop destinations are fetched with 
 
 Providers in `lib/oauth/config.ts`: `google-youtube`, `google-search-console`, `facebook`.
 
-**IMPLEMENTED (code):** start route, SHA-256 hashed state with 10-minute expiry, consume+delete, token exchange, AES-256-GCM encryption of credentials, workspace-scoped upsert, YouTube offline refresh, Facebook long-lived page token (first page only).
+**IMPLEMENTED (code):** start route, SHA-256 hashed state with 10-minute expiry, consume+delete, token exchange, AES-256-GCM encryption of credentials, workspace-scoped upsert, YouTube offline refresh for stored provider `youtube` (OAuth key `google-youtube`), Facebook long-lived page token (first page only). YouTube scopes: `youtube.force-ssl` + `yt-analytics.readonly`.
 
 **PARTIAL / risks:**
 
 - State consume is read-then-delete, not a single atomic compare-and-delete.
 - Callback is unauthenticated by design (browser redirect); binds via state.
 - Callback errors are copied into the URL query string.
-- YouTube scopes are `youtube.force-ssl` only (no Analytics scope) — matches honest limitation in README.
+- Existing YouTube tokens authorized before Analytics scope must reconnect.
 - Facebook OAuth uses first Page only.
-- Older docs still describe manual token paste (`docs/INTEGRATIONS.md`).
+- Manual YouTube token paste remains as a legacy/testing-only UI path.
 
 **NOT VERIFIED:** any live Google/Meta OAuth round-trip.
 
@@ -222,7 +222,7 @@ README is an appended changelog, not a current source of truth. Direct contradic
 | “Facebook’s 8 tabs are still placeholders” | Also claims “All 12 tabs now fully implemented”; uncommitted `app/api/facebook-tools/*` exists |
 | “YouTube Coming Soon placeholders” | Also claims all 13 tabs implemented; uncommitted `app/api/youtube-tools/*` exists |
 | “No real background cron” | `/api/cron/autoseo` + worker exist (host must invoke them) |
-| Links to `docs/SECURITY-V2.md`, `V3-…`, `V4-…`, `V5-…`, `V8-…`, `V11-…`, `V14-…`, `V18-…`, `V19-…`, `custom-site-receiver-example.md`, `youtube-facebook-setup.md` | Those files are missing. Content was partly folded into `docs/PRODUCTION-SECURITY.md`, `docs/INTEGRATIONS.md`, `docs/AUTOSEO-VERSION-HISTORY.md` |
+| Links to `docs/SECURITY-V2.md`, `V3-…`, `V4-…`, `V5-…`, `V8-…`, `V11-…`, `V14-…`, `V18-…`, `V19-…`, `custom-site-receiver-example.md` | Those files are missing. YouTube/Facebook setup now points at existing `docs/INTEGRATIONS.md`. Other historical V3–V19 content was partly folded into `docs/PRODUCTION-SECURITY.md` and `docs/AUTOSEO-VERSION-HISTORY.md`. |
 | “Authentication and authorization are not yet implemented” in `docs/PRODUCTION-SECURITY.md` | Auth/RBAC/RLS migrations exist; enforcement is flag-gated |
 
 ## 15. Git working tree (uncommitted)

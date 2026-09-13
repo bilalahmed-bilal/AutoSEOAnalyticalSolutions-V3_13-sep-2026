@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApiAccess, unauthorizedResponse } from "@/lib/auth/api-access";
 import { getTenantContext } from "@/lib/tenant";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 import { crawlSite } from "@/lib/seo-crawler";
 import { calculateSiteSeoScore } from "@/lib/seo-site-engine";
 import { writeAudit } from "@/lib/security/audit";
 import { errorMessage } from "@/lib/unknown";
+import { isProductAccess, requireProductAccess } from "@/lib/billing/access";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  const access = await requireApiAccess(req);
-  if (!access) return unauthorizedResponse();
+  const entitled = await requireProductAccess(req, {
+    feature: "website_seo.audit",
+    minRole: "viewer",
+    usageMetric: "seo.audits",
+  });
+  if (!isProductAccess(entitled)) return entitled;
+  const access = entitled.access;
   const tenant = access.authenticated ? await getTenantContext(req) : null;
   if (access.authenticated && !tenant)
     return NextResponse.json({ error: "Valid x-workspace-id required." }, { status: 400 });
@@ -33,6 +38,7 @@ export async function POST(req: NextRequest) {
       actor: access.user?.id || "anonymous-local",
       metadata: { url: crawl.startUrl, pages: crawl.pages.length, score: seo.score },
     });
+    await entitled.consume();
     return NextResponse.json({ crawl, seo });
   } catch (err: unknown) {
     console.error("site audit error:", err);

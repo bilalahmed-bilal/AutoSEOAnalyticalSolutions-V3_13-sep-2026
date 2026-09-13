@@ -57,6 +57,7 @@ export interface ShopifySettings {
 
 export interface YouTubeSettings {
   accessToken: string;
+  scope?: string;
 }
 
 export interface FacebookSettings {

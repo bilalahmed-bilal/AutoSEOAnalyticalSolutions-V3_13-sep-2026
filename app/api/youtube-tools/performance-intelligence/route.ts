@@ -3,19 +3,18 @@ import { requireYouTubeAccess, isYouTubeSecurityContext } from "@/lib/youtube-se
 import { sameOriginWrite } from "@/lib/security/request";
 import { getYouTubePerformanceReport } from "@/lib/analytics/youtube-deep";
 import { errorMessage } from "@/lib/unknown";
+import { YouTubeAnalyticsAuthorizationError } from "@/lib/oauth/config";
 
 export async function GET(req: NextRequest) {
-  const access = await requireYouTubeAccess(req, "viewer");
+  const access = await requireYouTubeAccess(req, "viewer", "youtube.analytics");
   if (!isYouTubeSecurityContext(access)) return access;
   try {
     const startDate = req.nextUrl.searchParams.get("startDate") || undefined;
     const endDate = req.nextUrl.searchParams.get("endDate") || undefined;
     return NextResponse.json(await getYouTubePerformanceReport(access.settings, { startDate, endDate }));
   } catch (error: unknown) {
-    return NextResponse.json(
-      { error: errorMessage(error, "YouTube performance intelligence failed.") },
-      { status: 502 }
-    );
+    const status = error instanceof YouTubeAnalyticsAuthorizationError ? 403 : 502;
+    return NextResponse.json({ error: errorMessage(error, "YouTube performance intelligence failed.") }, { status });
   }
 }
 

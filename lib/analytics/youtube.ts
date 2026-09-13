@@ -1,11 +1,8 @@
-// Analytics pillar (Section 1a). Deliberately uses YouTube Data API v3's
-// "statistics" part (view/like/comment counts) rather than the separate
-// YouTube Analytics API (watch time, CTR, audience retention) — the
-// Analytics API needs an additional OAuth scope
-// (yt-analytics.readonly) on top of youtube.force-ssl, so this keeps
-// Phase 4.5 working with the same token already set up in Phase 4. Deeper
-// watch-time/CTR metrics are a documented future upgrade, not a silent gap
-// (see docs/youtube-facebook-setup.md).
+// Analytics pillar (Section 1a). Uses YouTube Data API v3 "statistics"
+// (views/likes/comments) with the stored YouTube connection. Watch time,
+// retention, and CTR-style reports use the separate YouTube Analytics API
+// in lib/analytics/youtube-deep.ts and require yt-analytics.readonly.
+// See docs/INTEGRATIONS.md.
 
 import type { YouTubeSettings } from "@/lib/store";
 import { type UnknownRecord } from "@/lib/unknown";

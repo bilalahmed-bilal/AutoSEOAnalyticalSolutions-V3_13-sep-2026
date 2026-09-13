@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateVariants } from "@/lib/claude";
 import type { BusinessProfile, Language } from "@/lib/claude";
+import { sameOriginWrite } from "@/lib/security/request";
+import { isProductAccess, requireProductAccess } from "@/lib/billing/access";
 
 export async function POST(req: NextRequest) {
+  if (!sameOriginWrite(req)) return NextResponse.json({ error: "Cross-origin request blocked." }, { status: 403 });
+  const entitled = await requireProductAccess(req, {
+    feature: "content.generate",
+    minRole: "editor",
+    usageMetric: "ai.generations",
+  });
+  if (!isProductAccess(entitled)) return entitled;
   try {
     const { topic, profile, language } = (await req.json()) as {
       topic?: string;
@@ -18,9 +27,9 @@ export async function POST(req: NextRequest) {
       topic,
       profile,
     });
-    return NextResponse.json({ variants });
-  } catch (err) {
-    console.error("fb post-ab error:", err);
+    await entitled.consume();
+    return NextResponse.json({ variants, limitation: "GENERATION_ONLY" });
+  } catch {
     return NextResponse.json({ error: "Variants generate nahi ho sakay." }, { status: 500 });
   }
 }

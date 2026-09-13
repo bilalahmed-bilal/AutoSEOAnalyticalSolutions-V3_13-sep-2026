@@ -1,44 +1,63 @@
-# AutoSEO — Integration & Setup Notes
+# Nexora — Integration & Setup Notes
 
-## youtube-facebook-setup
+Customer-facing product name: **Nexora**. Internal engineering names and some
+example paths may still say AutoSEO.
 
-# YouTube aur Facebook Setup Guide
+Live Google/Meta OAuth round-trips are **REQUIRES_CONFIGURATION** until executed
+in a configured environment. Facebook OAuth is **FIRST_PAGE_ONLY**.
+
+## YouTube and Facebook connections
 
 Website (WordPress/Custom Site) ke bar-aks, YouTube aur Facebook ke liye
 pehle **Google/Meta ke sath apna app register karna** parta hai — ye Anthropic
-ya AutoSEO nahi, Google/Meta khud maangte hain kisi bhi third-party tool se
-jo unki API use kare. Ye ek-baar ka setup hai.
+ya Nexora nahi, Google/Meta khud maangte hain kisi bhi third-party tool se
+jo unki API use kare. Ye ek-baar ka Cloud/Meta app setup hai.
 
-## YouTube (Google Cloud Console)
+YouTube users then connect **inside Nexora** with **Connect with Google OAuth**.
+Do not use OAuth Playground to paste tokens for normal use.
 
-1. **console.cloud.google.com** pe ja kar ek naya project banayein.
-2. "APIs & Services" → "Library" mein ja kar **"YouTube Data API v3"** enable karein.
-3. "Credentials" mein ja kar **OAuth 2.0 Client ID** banayein (Application type: "Web application").
-4. **OAuth consent screen** setup karein — scope mein `https://www.googleapis.com/auth/youtube.force-ssl` add karein.
-5. Is Client ID/Secret se **OAuth flow** chalayein taake ek **access token** mil sake — sabse asaan tareeka:
-   - Google ka **OAuth 2.0 Playground** (developers.google.com/oauthplayground) use karein: apna Client ID/Secret daalein (settings gear icon se "Use your own OAuth credentials"), phir YouTube Data API v3 scope select kar ke authorize karein — ye aapko ek access token de dega jo aap AutoSEO ke "Publish" tab mein paste kar sakte hain.
-   - **Note:** Ye tokens **expire ho jate hain** (usually 1 ghante mein) — production ke liye "refresh token" flow implement karna hoga (Phase 5 ka kaam), abhi ke liye testing ke liye manually renew karte rahein.
+## YouTube (in-app Google OAuth)
+
+Database connections store provider as **`youtube`**. The OAuth start/callback
+routes use **`google-youtube`**. Token refresh maps `youtube` → Google YouTube
+OAuth config without renaming the stored provider.
+
+1. **console.cloud.google.com** pe ek project banayein.
+2. Enable **YouTube Data API v3** and **YouTube Analytics API**.
+3. Create an **OAuth 2.0 Client ID** (Web application).
+4. Authorized redirect URI:
+   `{NEXT_PUBLIC_APP_URL}/api/oauth/callback/google-youtube`
+5. OAuth consent screen pe ye scopes allow karein (Nexora yahi request karta hai):
+   - `https://www.googleapis.com/auth/youtube.force-ssl` — existing video metadata
+   - `https://www.googleapis.com/auth/yt-analytics.readonly` — Analytics reports
+6. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `NEXT_PUBLIC_APP_URL` in `.env.local`.
+7. In Nexora Publish/settings, click **Connect with Google OAuth**. Google issues
+   an access token and refresh token; Nexora stores them encrypted on the
+   `youtube` connection.
+
+Existing YouTube connections authorized **before** Analytics access was requested
+must click **Connect with Google OAuth** again. Refreshing an old token does not
+add missing scopes. Nexora does not treat those tokens as if they have Analytics
+permission.
+
+**Legacy/testing-only:** a manual access-token field still exists for local
+testing. Those tokens do not refresh and often lack Analytics access. Do not use
+them in production.
 
 ## Facebook (Meta for Developers)
 
 1. **developers.facebook.com** pe ja kar apna account banayein aur ek naya app create karein (type: "Business").
 2. App Dashboard mein "Facebook Login" product add karein.
-3. Apne Facebook Page ke liye **Page Access Token** generate karein:
-   - **Graph API Explorer** (developers.facebook.com/tools/explorer) use karein
-   - Apna app select karein, permissions mein `pages_manage_posts` aur `pages_read_engagement` add karein
-   - "Get Token" → "Get Page Access Token" se apne page ka token generate karein
-4. Apna **Page ID** apne Facebook Page ki "About" section se ya Graph API Explorer se mil jayega.
-5. Ye Page ID aur Page Access Token AutoSEO ke "Publish" tab mein paste karein.
+3. Nexora includes an in-app **Connect with Facebook OAuth** button (`/api/oauth/facebook`).
+   This beta connects the **first Page only** (`FIRST_PAGE_ONLY`).
+4. Page Access Token paste, if used, is a **legacy/testing** path:
+   - **Graph API Explorer** (developers.facebook.com/tools/explorer)
+   - permissions `pages_manage_posts` aur `pages_read_engagement`
+   - "Get Token" → "Get Page Access Token"
+5. Apna **Page ID** apne Facebook Page ki "About" section se ya Graph API Explorer se mil jayega.
 
-**Note:** Page Access Tokens ko "never expire" (long-lived) bhi banaya ja sakta hai Meta ke token-exchange endpoint se — production ke liye ye zaroori hoga.
-
-## Production ke liye (baad mein)
-
-Abhi ye process manual hai (aap khud token generate kar ke paste karte hain).
-Jab ye tool doosre users ko subscription pe dena ho (jaisa aapne pehle bataya
-tha), tab **poora OAuth "Connect with Google" / "Connect with Facebook"
-button flow** banana hoga taake har user khud apna account connect kar sake
-bina manually token copy-paste kiye — ye Phase 5 ka kaam hai.
+**Note:** Live Google/Meta OAuth round-trips are environment-specific and are not
+claimed verified here.
 
 ## custom-site-receiver-example
 

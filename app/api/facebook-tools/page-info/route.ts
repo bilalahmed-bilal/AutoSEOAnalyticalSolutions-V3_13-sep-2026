@@ -1,25 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPublishSettings } from "@/lib/store";
+import { isFacebookSecurityContext, requireFacebookAccess } from "@/lib/facebook-security";
+import { sameOriginWrite } from "@/lib/security/request";
 import { fetchPageInfo, updatePageInfo } from "@/lib/publishers/facebook";
 import { generatePageSeoFix } from "@/lib/claude";
 import type { Language } from "@/lib/claude";
 import { errorMessage } from "@/lib/unknown";
+import { isProductAccess, requireProductAccess } from "@/lib/billing/access";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const entitled = await requireProductAccess(req, { feature: "facebook.connect", minRole: "viewer" });
+  if (!isProductAccess(entitled)) return entitled;
+  const access = await requireFacebookAccess(req, "viewer");
+  if (!isFacebookSecurityContext(access)) return access;
   try {
-    const settings = getPublishSettings();
-    if (!settings.facebook) {
-      return NextResponse.json({ error: "Pehle Publish tab mein Facebook connect karein." }, { status: 400 });
-    }
-    const info = await fetchPageInfo(settings.facebook.settings);
-    return NextResponse.json({ info });
+    const info = await fetchPageInfo(access.settings);
+    return NextResponse.json({ info, pageSelection: "FIRST_PAGE_ONLY" });
   } catch (err: unknown) {
-    console.error("fb page-info error:", err);
     return NextResponse.json({ error: errorMessage(err, "Page info fetch nahi ho saka.") }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
+  if (!sameOriginWrite(req)) return NextResponse.json({ error: "Cross-origin request blocked." }, { status: 403 });
+  const entitled = await requireProductAccess(req, { feature: "facebook.publish", minRole: "editor" });
+  if (!isProductAccess(entitled)) return entitled;
+  const access = await requireFacebookAccess(req, "editor");
+  if (!isFacebookSecurityContext(access)) return access;
   try {
     const { niche, language, apply, about } = (await req.json()) as {
       niche?: string;
@@ -27,24 +33,17 @@ export async function POST(req: NextRequest) {
       apply?: boolean;
       about?: string;
     };
-
-    const settings = getPublishSettings();
-    if (!settings.facebook) {
-      return NextResponse.json({ error: "Pehle Publish tab mein Facebook connect karein." }, { status: 400 });
-    }
-
     if (apply) {
       if (!about) return NextResponse.json({ error: "About text zaroori hai apply karne ke liye." }, { status: 400 });
-      await updatePageInfo(settings.facebook.settings, { about });
+      await updatePageInfo(access.settings, { about });
+      await entitled.consume();
       return NextResponse.json({ ok: true });
     }
-
     if (!niche) return NextResponse.json({ error: "Niche batana zaroori hai." }, { status: 400 });
-    const info = await fetchPageInfo(settings.facebook.settings);
+    const info = await fetchPageInfo(access.settings);
     const fix = await generatePageSeoFix(info, niche, language || "ur");
     return NextResponse.json({ info, fix });
   } catch (err: unknown) {
-    console.error("fb page-info error:", err);
     return NextResponse.json({ error: errorMessage(err, "Kuch ghalat ho gaya.") }, { status: 500 });
   }
 }

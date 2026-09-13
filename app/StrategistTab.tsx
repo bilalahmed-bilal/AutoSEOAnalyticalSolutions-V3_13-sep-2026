@@ -32,7 +32,7 @@ export default function StrategistTab() {
       <section className="border border-line bg-white/60 p-6">
         <h2 className="font-head text-lg font-semibold">AI SEO Strategist</h2>
         <p className="mt-1 text-sm text-ink/60">
-          AutoSEO ke existing SEO signals ko combine karke next-best actions prioritize karta hai. Strategy run kisi
+          Nexora ke existing SEO signals ko combine karke next-best actions prioritize karta hai. Strategy run kisi
           website ko automatically change nahi karta.
         </p>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row">

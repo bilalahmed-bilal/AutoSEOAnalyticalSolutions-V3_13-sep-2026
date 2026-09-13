@@ -5,7 +5,7 @@ import { type UnknownRecord } from "@/lib/unknown";
 // AUTH NOTE: expects a Page Access Token (not a personal user token) with the
 // pages_manage_posts permission, already obtained via Meta's OAuth flow and
 // a registered Meta for Developers app. That app-registration/OAuth setup
-// happens outside this codebase (see docs/youtube-facebook-setup.md).
+// happens through in-app Facebook OAuth. See docs/INTEGRATIONS.md.
 
 export interface FacebookSettings {
   pageId: string;

@@ -2,8 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = path.resolve(new URL("..", import.meta.url).pathname);
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
 
 const youtubeRoutes = [
@@ -25,7 +26,11 @@ test("all YouTube API routes use the shared YouTube access guard", () => {
     const source = read(file);
     const hasChannelGuard = /requireYouTubeAccess\(/.test(source) && /isYouTubeSecurityContext\(/.test(source);
     const hasWorkspaceGuard = /requireWorkspaceRole\(/.test(source) && /isRoleResult\(/.test(source);
-    assert.ok(hasChannelGuard || hasWorkspaceGuard, `${file} must require authenticated workspace access`);
+    const hasProductGuard = /requireProductAccess\(/.test(source);
+    assert.ok(
+      hasChannelGuard || hasWorkspaceGuard || hasProductGuard,
+      `${file} must require authenticated workspace access`
+    );
   }
 });
 

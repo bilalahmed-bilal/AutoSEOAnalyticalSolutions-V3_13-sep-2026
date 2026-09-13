@@ -24,6 +24,8 @@
 // Shopify's own store admin UI edits — not a guess at a third-party app's
 // custom field, unlike the WordPress Yoast/RankMath situation.
 
+import { safeOutboundFetch } from "@/lib/security/outbound";
+
 export interface ShopifySettings {
   shopDomain: string; // e.g. "mystore.myshopify.com"
   accessToken: string;
@@ -39,7 +41,11 @@ function normalizeShopDomain(domain: string): string {
 }
 
 function apiUrl(settings: ShopifySettings, path: string): string {
-  return `https://${normalizeShopDomain(settings.shopDomain)}/admin/api/${API_VERSION}${path}`;
+  const domain = normalizeShopDomain(settings.shopDomain);
+  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(domain)) {
+    throw new Error("Shopify store domain must be a *.myshopify.com hostname.");
+  }
+  return `https://${domain}/admin/api/${API_VERSION}${path}`;
 }
 
 function headers(settings: ShopifySettings) {
@@ -51,7 +57,7 @@ function headers(settings: ShopifySettings) {
 
 export async function testShopifyConnection(settings: ShopifySettings): Promise<{ ok: boolean; message: string }> {
   try {
-    const res = await fetch(apiUrl(settings, "/shop.json"), {
+    const res = await safeOutboundFetch(apiUrl(settings, "/shop.json"), {
       headers: headers(settings),
       signal: AbortSignal.timeout(10_000),
     });
@@ -75,7 +81,7 @@ export async function publishToShopify(
   settings: ShopifySettings,
   post: { title: string; body: string; metaDescription?: string }
 ): Promise<{ id: number; link: string }> {
-  const res = await fetch(apiUrl(settings, "/pages.json"), {
+  const res = await safeOutboundFetch(apiUrl(settings, "/pages.json"), {
     method: "POST",
     headers: headers(settings),
     body: JSON.stringify({
@@ -89,8 +95,7 @@ export async function publishToShopify(
   });
 
   if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Shopify publish failed (status ${res.status}): ${errText}`);
+    throw new Error(`Shopify publish failed (status ${res.status}).`);
   }
 
   const data = await res.json();
@@ -110,7 +115,7 @@ export async function publishToShopify(
 }
 
 async function setPageMetaDescription(settings: ShopifySettings, pageId: number, metaDescription: string) {
-  const res = await fetch(apiUrl(settings, `/pages/${pageId}/metafields.json`), {
+  const res = await safeOutboundFetch(apiUrl(settings, `/pages/${pageId}/metafields.json`), {
     method: "POST",
     headers: headers(settings),
     body: JSON.stringify({
@@ -140,7 +145,7 @@ export async function applySeoFixesToShopify(
 ): Promise<{ link: string }> {
   const handle = extractHandle(fix.targetUrl);
 
-  const lookupRes = await fetch(apiUrl(settings, `/pages.json?handle=${encodeURIComponent(handle)}`), {
+  const lookupRes = await safeOutboundFetch(apiUrl(settings, `/pages.json?handle=${encodeURIComponent(handle)}`), {
     headers: headers(settings),
     signal: AbortSignal.timeout(10_000),
   });
@@ -153,15 +158,14 @@ export async function applySeoFixesToShopify(
     throw new Error(`"${handle}" handle wala page nahi mila. Note: sirf Shopify Pages support hain abhi.`);
   }
 
-  const updateRes = await fetch(apiUrl(settings, `/pages/${page.id}.json`), {
+  const updateRes = await safeOutboundFetch(apiUrl(settings, `/pages/${page.id}.json`), {
     method: "PUT",
     headers: headers(settings),
     body: JSON.stringify({ page: { id: page.id, title: fix.title } }),
     signal: AbortSignal.timeout(15_000),
   });
   if (!updateRes.ok) {
-    const errText = await updateRes.text();
-    throw new Error(`Shopify update failed (status ${updateRes.status}): ${errText}`);
+    throw new Error(`Shopify update failed (status ${updateRes.status}).`);
   }
 
   await setPageMetaDescription(settings, page.id, fix.metaDescription).catch(() => {

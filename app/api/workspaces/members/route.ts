@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   const email = String(body.email || "")
     .trim()
     .toLowerCase();
-  const role = ["admin", "editor", "viewer"].includes(body.role) ? body.role : "editor";
+  const role = ["admin", "editor", "member", "viewer"].includes(body.role) ? body.role : "editor";
   if (!/^\S+@\S+\.\S+$/.test(email)) return NextResponse.json({ error: "Valid email required." }, { status: 400 });
 
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     invited = JSON.parse(inviteText);
   } catch {}
   if (!invite.ok && invite.status !== 422)
-    return NextResponse.json({ error: "Invite send nahi ho saka.", details: inviteText }, { status: invite.status });
+    return NextResponse.json({ error: "Invite send nahi ho saka." }, { status: invite.status });
   const invitedUserId = invited?.id;
   if (!invitedUserId)
     return NextResponse.json(
@@ -76,7 +76,7 @@ export async function PATCH(req: NextRequest) {
   if (!isRoleResult(permission)) return permission;
   const body = await req.json();
   const memberId = String(body.userId || "");
-  const role = ["admin", "editor", "viewer"].includes(body.role) ? body.role : "editor";
+  const role = ["admin", "editor", "member", "viewer"].includes(body.role) ? body.role : "editor";
   if (!memberId) return NextResponse.json({ error: "userId required." }, { status: 400 });
   const rows = await supabaseAdmin<UnknownRecord[]>(
     "workspace_members",

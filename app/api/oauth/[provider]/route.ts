@@ -5,6 +5,7 @@ import { requireWorkspaceRole, isRoleResult } from "@/lib/auth/rbac";
 import { createOAuthState } from "@/lib/oauth/state";
 import { authorizationUrl } from "@/lib/oauth/provider";
 import type { OAuthProvider } from "@/lib/oauth/config";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 import { errorMessage } from "@/lib/unknown";
 
 const providers = new Set<OAuthProvider>(["google-youtube", "google-search-console", "facebook"]);
@@ -15,6 +16,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
     return NextResponse.json({ error: "OAuth requires authenticated Supabase mode." }, { status: 401 });
   const permission = await requireWorkspaceRole(req, "admin");
   if (!isRoleResult(permission)) return permission;
+  const rate = checkRateLimit(req, "oauth-start");
+  if (!rate.ok) {
+    return NextResponse.json(
+      { error: "Too many OAuth attempts. Try again shortly." },
+      { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
+    );
+  }
   const tenant = await getTenantContext(req);
   if (!tenant) return NextResponse.json({ error: "Valid x-workspace-id required." }, { status: 400 });
   const { provider } = await params;

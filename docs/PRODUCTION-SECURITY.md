@@ -1,4 +1,6 @@
-# AutoSEO — Consolidated Production Security & Reliability Notes
+# Nexora — Consolidated Production Security & Reliability Notes
+
+Historical AutoSEO version notes remain below. Current launch class: **Nexora Free Beta**. See `docs/NEXORA.md`.
 
 ## SECURITY-V2
 
@@ -12,17 +14,18 @@
 - Basic API rate limiting for SEO analysis to reduce accidental or abusive request bursts.
 - JSONL audit logging for SEO analyses and security-sensitive workflow events.
 
-## Important production limitations still remaining
+## Current Free Beta limitations (code-level)
 
-This project is now safer as a development foundation, but it is **not yet a production multi-tenant SaaS**.
+These replace obsolete claims that the app still used only `data/db.json`.
 
-1. `data/db.json` is still a local file store. Replace it with PostgreSQL/Supabase before onboarding multiple users.
-2. Authentication and authorization are not yet implemented. Do not expose this build publicly as a multi-user service.
-3. The in-memory rate limiter is process-local. Production needs a shared limiter (for example Redis/KV) at the edge/API layer.
-4. DNS validation reduces SSRF risk but cannot fully eliminate DNS-rebinding concerns when the application fetches directly. Production should use network egress controls or a dedicated fetch proxy/isolation layer.
-5. Connected-platform OAuth flows, token refresh, revocation, and least-privilege scopes still need to replace manually pasted tokens.
-6. The content calendar still requires a durable queue/scheduler for unattended execution.
-7. Database transactions, idempotency keys, job retries, dead-letter handling, and immutable audit storage should be added with the PostgreSQL/queue migration.
+1. Production (`NODE_ENV=production`) always requires a verified session. Forgetting `AUTOSEO_AUTH_REQUIRED` does not open APIs. Browser sessions prefer HttpOnly cookies; Bearer remains accepted for workers and legacy clients.
+2. Workspace membership is checked server-side. `x-workspace-id` is never trusted alone.
+3. Rate limiting is in-process. Distributed limiting REQUIRES_PRODUCTION_INFRASTRUCTURE.
+4. Publisher and crawler SSRF re-validate redirect Location URLs. DNS-rebinding pinning remains PARTIAL.
+5. YouTube uses in-app Google OAuth (`connections.provider = "youtube"`). Manual token paste is legacy/testing-only. Missing Analytics scope requires reconnect. Live Google/Meta OAuth E2E REQUIRES_CONFIGURATION.
+6. Facebook OAuth is FIRST_PAGE_ONLY.
+7. Billing and paid checkout are OFF for Free Beta. Durable usage metering requires V46 on the live database (owner-applied).
+8. Local demo without Supabase is DEVELOPMENT_ONLY.
 
 ## Encryption setup
 

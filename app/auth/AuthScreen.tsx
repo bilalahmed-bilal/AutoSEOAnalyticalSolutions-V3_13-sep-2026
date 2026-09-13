@@ -19,15 +19,15 @@ export default function AuthScreen({ onAuthenticated }: { onAuthenticated: () =>
     try {
       if (mode === "forgot") {
         await resetPassword(email.trim());
-        setMessage("Password reset email bhej di gayi hai. Inbox aur spam folder check karein.");
+        setMessage("Password reset email sent. Check inbox and spam.");
       } else if (mode === "signup") {
         const data = await signUp(email.trim(), password);
         setMessage(
-          data.access_token
-            ? "Account create ho gaya."
-            : "Account create ho gaya. Email confirmation ke baad login karein."
+          data.access_token || data.sessionEstablished
+            ? "Account created."
+            : "Account created. Confirm your email, then sign in."
         );
-        if (data.access_token) onAuthenticated();
+        if (data.access_token || data.sessionEstablished) onAuthenticated();
       } else {
         await signIn(email.trim(), password);
         onAuthenticated();
@@ -40,11 +40,11 @@ export default function AuthScreen({ onAuthenticated }: { onAuthenticated: () =>
   }
   return (
     <section className="mx-auto max-w-md border border-line bg-white/80 p-6 shadow-sm">
-      <p className="text-xs uppercase tracking-[.2em] text-signal">AutoSEO</p>
+      <p className="text-xs uppercase tracking-[.2em] text-signal">Nexora</p>
       <h1 className="mt-2 font-head text-2xl font-semibold text-ink">
         {mode === "login" ? "Sign in" : mode === "signup" ? "Create account" : "Reset password"}
       </h1>
-      <p className="mt-2 text-sm text-ink/60">Apne AutoSEO workspace mein secure access karein.</p>
+      <p className="mt-2 text-sm text-ink/60">Secure access to your Nexora workspace.</p>
       <form onSubmit={submit} className="mt-6 space-y-4">
         <label className="block text-sm">
           Email

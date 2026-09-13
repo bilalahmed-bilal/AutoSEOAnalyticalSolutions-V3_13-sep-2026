@@ -1,4 +1,5 @@
 import type { WordPressSettings } from "@/lib/store";
+import { safeOutboundFetch } from "@/lib/security/outbound";
 
 // The first publish adapter (Section 5.2). Handles both creating new posts
 // (Phase 3) and updating an existing post's title/excerpt for SEO fixes
@@ -28,7 +29,7 @@ function normalizeSiteUrl(siteUrl: string): string {
 export async function testWordPressConnection(settings: WordPressSettings): Promise<{ ok: boolean; message: string }> {
   try {
     const base = normalizeSiteUrl(settings.siteUrl);
-    const res = await fetch(`${base}/wp-json/wp/v2/users/me`, {
+    const res = await safeOutboundFetch(`${base}/wp-json/wp/v2/users/me`, {
       headers: { Authorization: authHeader(settings) },
       signal: AbortSignal.timeout(10_000),
     });
@@ -54,7 +55,7 @@ export async function publishToWordPress(
 ): Promise<{ id: number; link: string }> {
   const base = normalizeSiteUrl(settings.siteUrl);
 
-  const res = await fetch(`${base}/wp-json/wp/v2/posts`, {
+  const res = await safeOutboundFetch(`${base}/wp-json/wp/v2/posts`, {
     method: "POST",
     headers: {
       Authorization: authHeader(settings),
@@ -70,8 +71,7 @@ export async function publishToWordPress(
   });
 
   if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`WordPress publish failed (status ${res.status}): ${errText}`);
+    throw new Error(`WordPress publish failed (status ${res.status}).`);
   }
 
   const data = await res.json();
@@ -91,7 +91,7 @@ export async function applySeoFixesToWordPress(
   const base = normalizeSiteUrl(settings.siteUrl);
   const slug = extractSlug(fix.targetUrl);
 
-  const lookupRes = await fetch(`${base}/wp-json/wp/v2/posts?slug=${encodeURIComponent(slug)}`, {
+  const lookupRes = await safeOutboundFetch(`${base}/wp-json/wp/v2/posts?slug=${encodeURIComponent(slug)}`, {
     headers: { Authorization: authHeader(settings) },
     signal: AbortSignal.timeout(10_000),
   });
@@ -106,7 +106,7 @@ export async function applySeoFixesToWordPress(
   }
   const postId = matches[0].id;
 
-  const updateRes = await fetch(`${base}/wp-json/wp/v2/posts/${postId}`, {
+  const updateRes = await safeOutboundFetch(`${base}/wp-json/wp/v2/posts/${postId}`, {
     method: "PUT",
     headers: {
       Authorization: authHeader(settings),
@@ -120,8 +120,7 @@ export async function applySeoFixesToWordPress(
   });
 
   if (!updateRes.ok) {
-    const errText = await updateRes.text();
-    throw new Error(`WordPress update failed (status ${updateRes.status}): ${errText}`);
+    throw new Error(`WordPress update failed (status ${updateRes.status}).`);
   }
 
   const data = await updateRes.json();

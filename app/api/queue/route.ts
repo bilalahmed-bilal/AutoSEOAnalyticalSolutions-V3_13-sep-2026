@@ -4,6 +4,8 @@ import { type Channel } from "@/lib/store";
 import { addDraftRemote, listDraftsRemote, getPublishSettingsRemote, updateDraftRemote } from "@/lib/store-repository";
 import { getTenantContext } from "@/lib/tenant";
 import { requireWorkspaceRole, isRoleResult } from "@/lib/auth/rbac";
+import { isProductAccess, requireProductAccess } from "@/lib/billing/access";
+import { publishFeatureForChannel } from "@/lib/billing/route-policy";
 import { enqueueJob, publishJobKey } from "@/lib/jobs/queue";
 
 export async function GET(req: NextRequest) {
@@ -40,7 +42,17 @@ export async function POST(req: NextRequest) {
       };
 
     if (!channel || !title || !body) {
-      return NextResponse.json({ error: "Channel, title aur body zaroori hain." }, { status: 400 });
+      return NextResponse.json({ error: "Channel, title, and body are required." }, { status: 400 });
+    }
+    const publishFeature = publishFeatureForChannel(channel);
+    if (publishFeature && access.authenticated) {
+      const entitled = await requireProductAccess(req, {
+        feature: publishFeature,
+        minRole: "editor",
+        usageMetric:
+          channel === "youtube" ? "youtube.publish" : channel === "facebook" ? "facebook.publish" : undefined,
+      });
+      if (!isProductAccess(entitled)) return entitled;
     }
     if (channel === "youtube" && !videoId) {
       return NextResponse.json({ error: "YouTube ke liye ek existing Video ID batana zaroori hai." }, { status: 400 });

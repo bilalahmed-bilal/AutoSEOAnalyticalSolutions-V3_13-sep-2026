@@ -4,7 +4,7 @@
 // what's reliably available — fan count and per-post engagement counts
 // (likes/comments/shares) — which is enough to power the channel-audit
 // "underperforming content" comparison. Deeper Insights metrics are a
-// documented future upgrade (see docs/youtube-facebook-setup.md).
+// documented future upgrade (see docs/INTEGRATIONS.md).
 
 import type { FacebookSettings } from "@/lib/store";
 import { type UnknownRecord } from "@/lib/unknown";

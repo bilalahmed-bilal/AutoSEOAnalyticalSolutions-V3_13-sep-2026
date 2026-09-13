@@ -1,4 +1,5 @@
 import type { YouTubeSettings } from "@/lib/store";
+import { YouTubeAnalyticsAuthorizationError, assertYouTubeAnalyticsAuthorized } from "@/lib/oauth/config";
 
 const API = "https://youtubeanalytics.googleapis.com/v2/reports";
 
@@ -59,19 +60,17 @@ async function queryAnalytics(
   settings: YouTubeSettings,
   params: URLSearchParams
 ): Promise<{ columnHeaders: Array<{ name: string }>; rows: unknown[][] }> {
+  assertYouTubeAnalyticsAuthorized(settings.scope);
   const res = await fetch(`${API}?${params.toString()}`, {
     headers: { Authorization: `Bearer ${settings.accessToken}` },
     signal: AbortSignal.timeout(15_000),
   });
 
   if (res.status === 401 || res.status === 403) {
-    throw new Error(
-      "YouTube Analytics API access required. Reconnect Google OAuth with the 'yt-analytics.readonly' scope."
-    );
+    throw new YouTubeAnalyticsAuthorizationError();
   }
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`YouTube Analytics failed (status ${res.status}): ${text.slice(0, 300)}`);
+    throw new Error("YouTube Analytics request failed. Reconnect YouTube if this continues.");
   }
 
   const data = await res.json();

@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/client-api";
-import { getSession, loadCurrentUser, signOut } from "@/lib/auth/browser";
+import { loadCurrentUser, signOut } from "@/lib/auth/browser";
 import AuthScreen from "@/app/auth/AuthScreen";
 import AutomationWorkflowPanel from "@/app/automation/AutomationWorkflowPanel";
 import StrategistTab from "@/app/StrategistTab";
 import OperatingSystemTab from "@/app/os/OperatingSystemTab";
+import DashboardPanel from "@/app/dashboard/DashboardPanel";
+import ConnectionsPanel from "@/app/connections/ConnectionsPanel";
+import SubscriptionPanel from "@/app/billing/SubscriptionPanel";
+import { productBrand } from "@/lib/product/brand";
 import type { BusinessProfile, Channel, GeneratedContent, Language, SeoAnalysis, SeoFixes } from "@/lib/claude";
 import type { CrawlResult } from "@/lib/seo-crawler";
 import { errorMessage, scheduleMount, type UnknownRecord } from "@/lib/unknown";
@@ -24,6 +28,9 @@ const LANGUAGES: { id: Language; label: string }[] = [
 ];
 
 type Tab =
+  | "dashboard"
+  | "connections"
+  | "subscription"
   | "generate"
   | "analyze"
   | "publish"
@@ -66,10 +73,10 @@ type Tab =
 type TabCategory = "website" | "youtube" | "facebook" | "overview";
 
 const TAB_CATEGORIES: { id: TabCategory; label: string; icon: string }[] = [
-  { id: "website", label: "Website", icon: "🌐" },
-  { id: "youtube", label: "YouTube", icon: "📺" },
-  { id: "facebook", label: "Facebook", icon: "📘" },
-  { id: "overview", label: "Overview & Settings", icon: "⚙️" },
+  { id: "website", label: "Website", icon: "W" },
+  { id: "youtube", label: "YouTube", icon: "Y" },
+  { id: "facebook", label: "Facebook", icon: "F" },
+  { id: "overview", label: "Workspace", icon: "N" },
 ];
 
 // Content Generator, Publish, and AI Content Studio each already let you pick
@@ -124,6 +131,9 @@ const TABS_BY_CATEGORY: Record<TabCategory, { id: Tab; label: string; group?: st
     { id: "fbAudienceInsights", label: "Audience Insights", group: "Analytics" },
   ],
   overview: [
+    { id: "dashboard", label: "Dashboard" },
+    { id: "connections", label: "Connections" },
+    { id: "subscription", label: "Subscription & Usage" },
     { id: "analytics", label: "Analytics (All Channels)" },
     { id: "automation", label: "Automation" },
     { id: "quality", label: "Quality & Fact Check" },
@@ -132,7 +142,7 @@ const TABS_BY_CATEGORY: Record<TabCategory, { id: Tab; label: string; group?: st
     { id: "advancedAnalytics", label: "Advanced Analytics & ROI" },
     { id: "strategist", label: "AI SEO Strategist" },
     { id: "operatingSystem", label: "AI Operating System" },
-    { id: "system", label: "System" },
+    { id: "system", label: "Team & Jobs" },
   ],
 };
 
@@ -182,9 +192,11 @@ export default function HomePage() {
 
   if (!ready)
     return (
-      <main className="min-h-screen bg-paper p-10 text-center text-sm text-ink/60">AutoSEO load ho raha hai…</main>
+      <main className="min-h-screen bg-paper p-10 text-center text-sm text-ink/60">
+        {productBrand.productName} is loading…
+      </main>
     );
-  if (supabaseConfigured && (!user || !getSession())) {
+  if (supabaseConfigured && !user) {
     return (
       <main className="min-h-screen bg-paper px-6 py-16">
         <AuthScreen onAuthenticated={() => loadCurrentUser().then(setUser)} />
@@ -200,8 +212,8 @@ export default function HomePage() {
 }
 
 function AuthenticatedDashboard({ user, onSignOut }: { user: UnknownRecord; onSignOut: () => void }) {
-  const [tab, setTabRaw] = useState<Tab>("generate");
-  const [category, setCategory] = useState<TabCategory>(categoryOf("generate"));
+  const [tab, setTabRaw] = useState<Tab>("dashboard");
+  const [category, setCategory] = useState<TabCategory>(categoryOf("dashboard"));
 
   function selectCategory(c: TabCategory) {
     setCategory(c);
@@ -211,28 +223,32 @@ function AuthenticatedDashboard({ user, onSignOut }: { user: UnknownRecord; onSi
   return (
     <main className="min-h-screen bg-paper">
       <header className="border-b-4 border-ink bg-ink text-paper">
-        <div className="mx-auto max-w-3xl px-6 py-10">
-          <p className="font-display text-3xl leading-tight text-signal">آٹو ایس ای او</p>
-          <h1 className="font-head mt-2 text-2xl font-semibold sm:text-3xl">
-            Website, YouTube, Facebook — جو بھی آپ کے پاس ہے
-          </h1>
+        <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+          <p className="text-xs uppercase tracking-[.2em] text-signal">Free Beta</p>
+          <p className="font-display text-3xl leading-tight text-signal">{productBrand.productName}</p>
+          <h1 className="font-head mt-2 text-2xl font-semibold sm:text-3xl">{productBrand.tagline}</h1>
           <p className="mt-3 max-w-xl text-sm text-paper/80">
-            Sab channels connect karna zaroori nahi — sirf woh chunein jo aap chalate hain, aur is se advance-level SEO
-            aur marketing content payein.
+            Discover, analyze, recommend, create, approve, apply, verify, and measure — humans stay in control of
+            publishing. Billing is off during Free Beta.
           </p>
 
           <WorkspaceBar />
-          <div className="mt-3 flex items-center justify-between gap-3 text-xs text-paper/70">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-paper/70">
             <span>
               {user?.id === "local-demo-user"
                 ? "Local demo mode (Supabase not configured)"
                 : user?.email || "Signed in"}
             </span>
-            {user?.id !== "local-demo-user" && (
-              <button onClick={onSignOut} className="border border-paper/30 px-3 py-1.5 hover:border-paper/60">
-                Sign out
-              </button>
-            )}
+            <span className="flex gap-2">
+              <a href="/admin" className="border border-paper/30 px-3 py-1.5 hover:border-paper/60">
+                Admin
+              </a>
+              {user?.id !== "local-demo-user" && (
+                <button onClick={onSignOut} className="border border-paper/30 px-3 py-1.5 hover:border-paper/60">
+                  Sign out
+                </button>
+              )}
+            </span>
           </div>
 
           <div className="mt-6 flex flex-wrap gap-2">
@@ -291,7 +307,10 @@ function AuthenticatedDashboard({ user, onSignOut }: { user: UnknownRecord; onSi
         </div>
       </header>
 
-      <div className="mx-auto max-w-3xl px-6 py-10">
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+        {tab === "dashboard" && <DashboardPanel />}
+        {tab === "connections" && <ConnectionsPanel />}
+        {tab === "subscription" && <SubscriptionPanel />}
         {tab === "generate" && <ContentGeneratorTab />}
         {tab === "analyze" && <SeoAnalyzerTab />}
         {tab === "publish" && <PublishTab />}
@@ -1137,8 +1156,8 @@ function YtRetentionInsightsTab() {
     <section className="border border-line bg-white/60 p-6">
       <h2 className="font-head text-lg font-semibold text-ink">Watch Time & Retention Insights</h2>
       <p className="mt-1 text-sm text-ink/60">
-        Ye YouTube Analytics API (Data API v3 se alag) use karta hai — agar aapke access token mein
-        'yt-analytics.readonly' scope nahi hai to clear error dikhega.
+        Ye YouTube Analytics API use karta hai (Data API v3 se alag). Agar connection Analytics read permission ke bina
+        authorize hua ho to reconnect required hai — Nexora fake watch-time data nahi dikhata.
       </p>
       <div className="mt-4 flex gap-2">
         <input
@@ -1921,7 +1940,7 @@ function WorkspaceBar() {
       <div className="mt-5 border-2 border-signal bg-paper p-4">
         <div className="text-sm font-medium text-paper">Apna pehla workspace banayein</div>
         <p className="mt-1 text-xs text-paper/70">
-          Workspace ke baghair production data aur publishing actions available nahi honge.
+          Without a workspace, production data and publishing actions are unavailable.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <input
@@ -2775,9 +2794,10 @@ function PublishTab() {
       <section className="mt-6 border border-line bg-white/60 p-6">
         <h2 className="font-head text-lg font-semibold text-ink">YouTube</h2>
         <p className="mt-1 text-sm text-ink/60">
-          OAuth 2.0 access token chahiye hoga (youtube.force-ssl scope). Ye Google Cloud Console mein apna app register
-          kar ke milta hai — details ke liye <code className="bg-paper px-1">docs/youtube-facebook-setup.md</code>{" "}
-          dekhein.
+          Connect YouTube with the in-app Google OAuth button. Nexora requests YouTube Data API access (update metadata
+          on existing videos) and YouTube Analytics read access (watch time and retention). Existing connections created
+          before Analytics access was added must reconnect. Setup notes:{" "}
+          <code className="bg-paper px-1">docs/INTEGRATIONS.md</code>.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <button
@@ -2791,10 +2811,14 @@ function PublishTab() {
           >
             Connect with Google OAuth
           </button>
-          <span className="self-center text-xs text-ink/50">Ya legacy token manually use karein:</span>
+          <span className="self-center text-xs text-ink/50">Legacy/testing-only token paste:</span>
         </div>
         <div className="mt-3">
-          <SecretField label="Access Token (legacy/manual)" value={ytAccessToken} onChange={setYtAccessToken} />
+          <SecretField
+            label="Access Token (legacy/testing-only — does not refresh, may lack Analytics access)"
+            value={ytAccessToken}
+            onChange={setYtAccessToken}
+          />
         </div>
         <PermissionToggle value={ytPermission} onChange={setYtPermission} />
         <button
@@ -2813,7 +2837,7 @@ function PublishTab() {
         <h2 className="font-head text-lg font-semibold text-ink">Facebook</h2>
         <p className="mt-1 text-sm text-ink/60">
           Page Access Token chahiye hoga (pages_manage_posts permission). Meta for Developers app se milta hai — details{" "}
-          <code className="bg-paper px-1">docs/youtube-facebook-setup.md</code> mein hain.
+          <code className="bg-paper px-1">docs/INTEGRATIONS.md</code> mein hain.
         </p>
         <div className="mt-3">
           <button
@@ -4045,7 +4069,7 @@ function TechnicalSeoTab() {
         <h2 className="font-head text-lg font-semibold">Technical SEO Automation</h2>
         <p className="mt-2 text-sm text-ink/60">
           Public website ko crawl karke technical SEO issues identify karein aur prioritized, safe remediation plan
-          hasil karein. AutoSEO direct production website files ko bina approval mutate nahi karta.
+          hasil karein. Nexora direct production website files ko bina approval mutate nahi karta.
         </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_120px_auto]">
           <input
@@ -4439,7 +4463,7 @@ function SiteArchitectureTab() {
         <h2 className="font-head text-lg font-semibold">Internal Linking & Site Architecture</h2>
         <p className="mt-2 text-sm text-ink/60">
           Public website ko crawl karke orphan/weak pages, hub candidates aur contextual internal-link opportunities
-          identify karein. Suggestions reviewable hain; AutoSEO live site ko automatically mutate nahi karta.
+          identify karein. Suggestions reviewable hain; Nexora live site ko automatically mutate nahi karta.
         </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <input
@@ -4876,7 +4900,7 @@ function AnalyticsTab() {
           )}
           {data.youtube.videos.length > 0 ? (
             <div className="mt-4 space-y-2">
-              <p className="text-sm text-ink/60">AutoSEO se publish/optimize ki gayi videos:</p>
+              <p className="text-sm text-ink/60">Nexora se publish/optimize ki gayi videos:</p>
               {data.youtube.videos.map((v) => (
                 <div
                   key={v.videoId}
@@ -4895,7 +4919,7 @@ function AnalyticsTab() {
               ))}
             </div>
           ) : (
-            <p className="mt-3 text-sm text-ink/50">Abhi tak AutoSEO se koi video publish/optimize nahi hui.</p>
+            <p className="mt-3 text-sm text-ink/50">Abhi tak Nexora se koi video publish/optimize nahi hui.</p>
           )}
         </section>
       )}
@@ -5011,7 +5035,8 @@ function YouTubePerformanceIntelligenceTab() {
       <section className="border border-line bg-white/60 p-6">
         <h2 className="font-head text-lg font-semibold text-ink">YouTube Performance Intelligence</h2>
         <p className="mt-1 text-xs text-ink/50">
-          {data.periodStart} → {data.periodEnd}
+          {data.periodStart} → {data.periodEnd}. Requires YouTube Analytics access on the connected Google account.
+          Reconnect YouTube if this report cannot load.
         </p>
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatBox label="Views" value={m.views} />
@@ -5446,12 +5471,14 @@ function AutomationTab() {
             value={newTopic}
             onChange={(e) => setNewTopic(e.target.value)}
             placeholder="Topic"
+            aria-label="Calendar topic"
             className="focus-ring border border-line bg-white px-3 py-2 text-ink placeholder:text-ink/30"
           />
           <input
             type="date"
             value={newDate}
             onChange={(e) => setNewDate(e.target.value)}
+            aria-label="Calendar date"
             className="focus-ring border border-line bg-white px-3 py-2 text-ink"
           />
           <button
@@ -5674,6 +5701,7 @@ function SystemTab() {
             className="border border-line bg-white px-3 py-2 text-sm"
           >
             <option value="editor">Editor</option>
+            <option value="member">Member</option>
             <option value="viewer">Viewer</option>
             <option value="admin">Admin</option>
           </select>

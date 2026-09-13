@@ -1,23 +1,12 @@
-**Update:** Website is now also grouped by pillar (SEO: 6 tools, Marketing:
-Content Strategy + Content Generator + Publish, Analytics: the shared
-Analytics tab), matching YouTube's structure. Facebook now has its own 8
-placeholder tabs too, mirroring YouTube's pattern: SEO (Page & Post Discovery
-Optimization, Hashtag & Keyword Research), Marketing (Post A/B Testing, Bulk
-Post Scheduler, Comment & Engagement Assistant, plus the shared Content
-Generator/Publish/Studio), Analytics (Post Performance Analytics, Competitor
-Page Tracking, Audience Insights, plus the shared Analytics tab). A bug where
-clicking a shared tab (Content Generator, Publish, Studio, Analytics) from
-inside YouTube's or Facebook's category would jump you back to Website's
-category was fixed — sub-tab clicks no longer re-derive the category.
+# Nexora (customer-facing)
 
-**Next step in progress:** YouTube's category now lists 10 placeholder tabs
-("Coming Soon" cards) organized by pillar — SEO (Keyword Research, Video SEO
-Studio, Tag Generator, Channel Audit), Marketing (Thumbnail & Title A/B
-Testing, Bulk Video Optimizer, Community Post Generator), and Analytics
-(Video Performance Analytics, Competitor Channel Tracking, Watch Time &
-Retention Insights) — matching Section 4.8's TubeBuddy/vidIQ-style feature
-list. These are UI-only placeholders for now; each will get real
-implementation one at a time.
+This repository is the Nexora product. Internal engineering names may still say AutoSEO.
+
+**Free Beta:** billing and paid checkout are OFF. See `docs/NEXORA.md` for setup, entitlements, OAuth, Admin, and known limitations.
+
+YouTube and Facebook tools in the app are implemented product surfaces, not "Coming Soon" cards. Provider capabilities that are generation-only or API-limited are labeled in the product and in `docs/NEXORA.md`.
+
+Content Strategy, Content Generator, Publish, and Analytics are shared across Website / YouTube / Facebook categories. Sub-tab clicks no longer jump back to the Website category.
 
 ## Facebook: All 12 tabs now fully implemented (not placeholders)
 
@@ -83,10 +72,9 @@ the 10 that were "Coming Soon" placeholders are built out:
   videos with view/like/comment counts and totals/averages.
 - **Competitor Channel Tracking** — add any public channel (by ID or
   @handle), see its subscriber/view/video counts, remove when done.
-- **Watch Time & Retention Insights** — attempts a real YouTube Analytics
-  API v2 call; **honestly surfaces a clear error** if the connected token
-  lacks the `yt-analytics.readonly` scope (which Phase 4's setup doesn't
-  request by default) rather than showing fake data.
+- **Watch Time & Retention Insights** — YouTube Analytics API v2; if the
+  connected token lacks `yt-analytics.readonly`, the UI asks the user to
+  reconnect with Google OAuth instead of showing invented data.
 
 New files: `app/api/youtube-tools/*` (9 new routes), new functions added to
 `lib/publishers/youtube.ts` (`fetchVideoSnippet`, `listChannelVideos`,
@@ -215,7 +203,7 @@ This build includes a production-oriented security and SEO foundation update:
 - security/workflow events can be recorded in `data/audit.log.jsonl`;
 - new security details and remaining production requirements are documented in `docs/SECURITY-V2.md`.
 
-**Still required before public multi-tenant production:** PostgreSQL/Supabase, real authentication/authorization, OAuth token management, shared rate limiting, durable queue/worker scheduling, transaction/idempotency controls, and network-level SSRF isolation.
+**Still required before public multi-tenant production:** PostgreSQL/Supabase, real authentication/authorization, shared rate limiting, durable queue/worker scheduling, transaction/idempotency controls, and network-level SSRF isolation. YouTube in-app Google OAuth already exists; live provider E2E is environment-specific.
 
 ## What's here (Phase 1 + Phase 2 + Phase 3)
 
@@ -250,13 +238,11 @@ This build includes a production-oriented security and SEO foundation update:
 - `lib/publishers/custom-site.ts` — generic publish adapter for **any other
   site**, including custom-built ones like KSTS (Next.js) that have no
   standard content API. Works via a small webhook endpoint the site owner
-  adds to their own project — see `docs/custom-site-receiver-example.md` for
-  a ready-to-paste Next.js version. Future adapters (YouTube, Facebook in
-  Phase 4) follow this same file-per-platform pattern.
-- `docs/custom-site-receiver-example.md` — the code to paste into a user's
-  own website (not this project) so it can receive publish requests.
-- `docs/youtube-facebook-setup.md` — how to register apps and get access
-  tokens for YouTube/Facebook (a one-time setup with Google/Meta directly).
+  adds to their own project — see `docs/INTEGRATIONS.md` for a ready-to-paste
+  Next.js receiver example. Future adapters follow this same file-per-platform
+  pattern.
+- `docs/INTEGRATIONS.md` — YouTube/Facebook Google-and-Meta app registration,
+  in-app OAuth, and the custom-site receiver example.
 - `docs/MASTER-REQUIREMENTS.md` — the full project plan.
 
 ### Phase 4 additions (new)
@@ -278,9 +264,9 @@ This build includes a production-oriented security and SEO foundation update:
 
 - `lib/analytics/youtube.ts` — channel stats (subscribers, total views,
   video count) and per-video stats (views/likes/comments) via YouTube Data
-  API v3's `statistics` part (same token as Phase 4, no new OAuth scope
-  needed). Full watch-time/CTR via the separate YouTube Analytics API is a
-  documented future upgrade, not built here.
+  API v3's `statistics` part. Watch-time/retention reports use the YouTube
+  Analytics API (`lib/analytics/youtube-deep.ts`) and require reconnect if
+  the stored token lacks `yt-analytics.readonly`.
 - `lib/analytics/facebook.ts` — Page follower count and recent posts'
   engagement (likes/comments/shares) via the Meta Graph API.
 - `lib/analytics/audit.ts` — flags content performing well below the
@@ -340,24 +326,15 @@ changing the underlying logic.
 
 - Real database: `data/db.json` is a single-file stand-in, fine for one user
   testing locally, but not safe for multiple simultaneous users.
-- No auth/login (single-user for now — needed before this becomes multi-tenant).
-- No proper OAuth "Connect" button flow for YouTube/Facebook yet — tokens are
-  pasted in manually (see `docs/youtube-facebook-setup.md`).
 - Keyword research, competitor gap analysis, bulk processing, and full
-  channel audit (rest of Section 4.8) are not built yet.
+  channel audit (rest of Section 4.8) have later-version implementations;
+  treat older README phase notes as historical.
 - No image generation yet (Section 4.4).
 - Permission model is one mode (Suggest/Auto) per platform, not the full
   per-action-category matrix from Section 3.
-- No real background cron/scheduler — "Run Due Items Now" in the Automation
-  tab is a manual stand-in (see Phase 5 notes in `docs/MASTER-REQUIREMENTS.md`).
 - A/B testing (`generateVariants()`) exists but isn't wired to
   auto-pick a winner from Analytics data yet — comparison is manual.
 - No email delivery for performance reports — generated on-demand only.
-- Deeper Analytics: YouTube Analytics API (watch time/CTR), Meta Page
-  Insights (reach/impressions), Google Search Console — not built (see
-  Phase 4.5 notes in `docs/MASTER-REQUIREMENTS.md`).
-- No undo/rollback, no full audit-trail UI (the Approval Queue list doubles
-  as the audit trail for now).
 
 ## Where to go next
 
@@ -366,15 +343,11 @@ Requirements Document marks each as built, with honest scope notes on what's
 simplified). From here, the work is **hardening and depth**, not new
 architecture:
 
-1. Move `data/db.json` to Postgres and add auth (multi-tenant readiness) —
-   this unblocks actually onboarding subscribers.
-2. Build the real OAuth "Connect with Google/Facebook" flow with token
-   refresh, replacing manual token paste.
-3. Add the remaining Section 4.8 YouTube features and deeper Analytics
-   (YouTube Analytics API, Meta Insights, Search Console).
+1. Keep production on Supabase Auth + workspace RLS; local JSON is a development fallback.
+2. YouTube connects through in-app Google OAuth with token refresh. Manual token paste is legacy/testing-only (`docs/INTEGRATIONS.md`). Live provider E2E remains environment-specific.
+3. Facebook OAuth exists in-app; Page picker and deeper Insights remain limited.
 4. Add image generation (Section 4.4).
-5. Wire A/B testing to auto-compare via Analytics data, and add real cron
-   for the Content Calendar.
+5. Wire A/B testing to auto-compare via Analytics data.
 
 ## V3 Production Foundation
 

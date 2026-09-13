@@ -19,13 +19,15 @@
 // unimplemented action should return a 501 so AutoSEO can report that
 // clearly rather than silently failing.
 
+import { safeOutboundFetch } from "@/lib/security/outbound";
+
 export interface CustomSiteSettings {
   webhookUrl: string;
   apiKey: string;
 }
 
 async function callReceiver(settings: CustomSiteSettings, payload: object) {
-  return fetch(settings.webhookUrl, {
+  return safeOutboundFetch(settings.webhookUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -71,8 +73,7 @@ export async function publishToCustomSite(
   });
 
   if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Custom site publish failed (status ${res.status}): ${errText}`);
+    throw new Error(`Custom site publish failed (status ${res.status}).`);
   }
 
   const data = await res.json().catch(() => ({}));
@@ -104,8 +105,7 @@ export async function applySeoFixesToCustomSite(
     );
   }
   if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`SEO fix apply nahi ho saka (status ${res.status}): ${errText}`);
+    throw new Error(`SEO fix apply nahi ho saka (status ${res.status}).`);
   }
 
   const data = await res.json().catch(() => ({}));

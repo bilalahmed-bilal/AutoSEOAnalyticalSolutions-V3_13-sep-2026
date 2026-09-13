@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { updatePassword } from "@/lib/auth/browser";
+import { adoptRecoveryTokens, updatePassword } from "@/lib/auth/browser";
 import { errorMessage } from "@/lib/unknown";
 
 export default function ResetPage() {
@@ -16,15 +16,18 @@ export default function ResetPage() {
       refresh = hash.get("refresh_token"),
       expires = hash.get("expires_at");
     if (access && refresh) {
-      localStorage.setItem(
-        "autoseo.supabase.session",
-        JSON.stringify({
-          access_token: access,
-          refresh_token: refresh,
-          expires_at: expires ? Number(expires) : undefined,
-        })
-      );
-      window.dispatchEvent(new Event("autoseo-auth-change"));
+      adoptRecoveryTokens(access, refresh, expires ? Number(expires) : undefined).catch(() => {
+        localStorage.setItem(
+          "autoseo.supabase.session",
+          JSON.stringify({
+            access_token: access,
+            refresh_token: refresh,
+            expires_at: expires ? Number(expires) : undefined,
+          })
+        );
+        window.dispatchEvent(new Event("autoseo-auth-change"));
+      });
+      window.history.replaceState(null, "", window.location.pathname);
     }
   }, []);
   async function save() {
@@ -32,7 +35,7 @@ export default function ResetPage() {
     setErr("");
     try {
       await updatePassword(password);
-      setMsg("Password update ho gaya. Ab AutoSEO par wapas ja sakte hain.");
+      setMsg("Password updated. You can return to Nexora.");
     } catch (e: unknown) {
       setErr(errorMessage(e, "Password update nahi ho saka."));
     } finally {
@@ -43,7 +46,7 @@ export default function ResetPage() {
     <main className="min-h-screen bg-paper p-6 pt-20">
       <section className="mx-auto max-w-md border border-line bg-white p-6">
         <h1 className="font-head text-2xl font-semibold">Set new password</h1>
-        <p className="mt-2 text-sm text-ink/60">Recovery link se apna new password set karein.</p>
+        <p className="mt-2 text-sm text-ink/60">Use the recovery link to set a new password.</p>
         <div className="mt-5 flex border border-line">
           <input
             required
@@ -68,7 +71,7 @@ export default function ResetPage() {
         {err && <p className="mt-3 text-sm text-red-700">{err}</p>}
         {msg && <p className="mt-3 text-sm text-green-700">{msg}</p>}
         <Link href="/" className="mt-5 block text-sm underline">
-          Back to AutoSEO
+          Back to Nexora
         </Link>
       </section>
     </main>

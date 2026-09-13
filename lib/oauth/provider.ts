@@ -51,6 +51,7 @@ export async function completeOAuth(provider: OAuthProvider, code: string, works
       refreshToken: token.refresh_token || null,
       expiresAt,
       permission: "suggest",
+      ...(typeof token.scope === "string" && token.scope.trim() ? { scope: token.scope } : {}),
     };
     await upsertConnection(workspaceId, "youtube", payload, expiresAt);
     return { provider, displayName: "YouTube", expiresAt };
@@ -78,14 +79,21 @@ export async function completeOAuth(provider: OAuthProvider, code: string, works
   if (!pagesRes.ok || !Array.isArray(pages.data) || !pages.data.length)
     throw new Error("Facebook account se koi Page access nahi mila.");
   const page = pages.data[0];
-  if (!page.id || !page.access_token) throw new Error("Facebook Page token obtain nahi ho saka.");
+  if (!page.id || !page.access_token) throw new Error("Facebook Page token could not be obtained.");
   await upsertConnection(workspaceId, "facebook", {
     pageId: page.id,
     pageAccessToken: page.access_token,
     pageName: page.name || "Facebook Page",
     permission: "suggest",
+    pageSelection: "FIRST_PAGE_ONLY",
   });
-  return { provider, displayName: page.name || "Facebook Page", pageId: page.id };
+  return {
+    provider,
+    displayName: page.name || "Facebook Page",
+    pageId: page.id,
+    pageSelection: "FIRST_PAGE_ONLY",
+    note: "Nexora Free Beta connects the first Facebook Page returned by Meta. Multi-page selection is not available.",
+  };
 }
 
 async function exchangeFacebookLongLivedToken(shortToken: string) {

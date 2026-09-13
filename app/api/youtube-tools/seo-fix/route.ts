@@ -8,7 +8,7 @@ import { errorMessage } from "@/lib/unknown";
 
 export async function POST(req: NextRequest) {
   if (!sameOriginWrite(req)) return NextResponse.json({ error: "Cross-origin request blocked." }, { status: 403 });
-  const access = await requireYouTubeAccess(req, "editor");
+  const access = await requireYouTubeAccess(req, "editor", "youtube.seo");
   if (!isYouTubeSecurityContext(access)) return access;
   try {
     const { videoId, niche, language } = (await req.json()) as {

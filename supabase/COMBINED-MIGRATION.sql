@@ -2294,3 +2294,90 @@ drop policy if exists oauth_states_deny_all on public.oauth_states;
 create policy oauth_states_deny_all on public.oauth_states for all using (false) with check (false);
 
 commit;
+
+-- ==================== v46-nexora-saas.sql ====================
+-- See supabase/v46-nexora-saas.sql for the canonical versioned file.
+alter table public.workspaces add column if not exists status text not null default 'active';
+alter table public.workspaces drop constraint if exists workspaces_status_check;
+alter table public.workspaces add constraint workspaces_status_check check (status in ('active','suspended'));
+alter table public.workspaces add column if not exists suspended_at timestamptz;
+alter table public.workspaces add column if not exists suspended_reason text;
+alter table public.workspace_members drop constraint if exists workspace_members_role_check;
+alter table public.workspace_members add constraint workspace_members_role_check check (role in ('owner','admin','editor','member','viewer'));
+create table if not exists public.product_plans (
+  slug text primary key, name text not null, description text not null default '',
+  price_cents integer not null default 0, currency text not null default 'USD',
+  billing_interval text not null default 'month', trial_days integer not null default 0,
+  team_limit integer not null default 1, api_access boolean not null default false,
+  priority boolean not null default false, support_level text not null default 'community',
+  status text not null default 'active', created_at timestamptz not null default now(), updated_at timestamptz not null default now()
+);
+create table if not exists public.product_features (
+  feature_key text primary key, description text not null default '', beta boolean not null default false,
+  status text not null default 'active', created_at timestamptz not null default now()
+);
+create table if not exists public.plan_features (
+  plan_slug text not null references public.product_plans(slug) on delete cascade,
+  feature_key text not null references public.product_features(feature_key) on delete cascade,
+  enabled boolean not null default true, primary key (plan_slug, feature_key)
+);
+create table if not exists public.workspace_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null unique references public.workspaces(id) on delete cascade,
+  plan_slug text not null references public.product_plans(slug),
+  status text not null default 'trial',
+  trial_ends_at timestamptz,
+  current_period_start timestamptz not null default now(),
+  current_period_end timestamptz not null default (now() + interval '1 month'),
+  cancel_at timestamptz, created_at timestamptz not null default now(), updated_at timestamptz not null default now()
+);
+create table if not exists public.subscription_events (
+  id uuid primary key default gen_random_uuid(), workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  actor_user_id uuid references auth.users(id) on delete set null, event_type text not null,
+  from_plan text, to_plan text, metadata jsonb not null default '{}'::jsonb, created_at timestamptz not null default now()
+);
+create table if not exists public.entitlement_overrides (
+  id uuid primary key default gen_random_uuid(), workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete cascade, feature_key text not null,
+  effect text not null, limit_value integer, reason text, expires_at timestamptz,
+  created_by uuid references auth.users(id) on delete set null, created_at timestamptz not null default now()
+);
+create table if not exists public.usage_counters (
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  metric text not null, period text not null, quantity integer not null default 0,
+  updated_at timestamptz not null default now(), primary key (workspace_id, metric, period)
+);
+create table if not exists public.usage_events (
+  id uuid primary key default gen_random_uuid(), workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  actor_user_id uuid references auth.users(id) on delete set null, metric text not null,
+  quantity integer not null default 1, created_at timestamptz not null default now()
+);
+create table if not exists public.billing_records (
+  id uuid primary key default gen_random_uuid(), workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  provider text not null default 'none', provider_reference text, kind text not null,
+  amount_cents integer, currency text default 'USD', status text not null default 'recorded',
+  metadata jsonb not null default '{}'::jsonb, created_at timestamptz not null default now()
+);
+create table if not exists public.coupons (
+  code text primary key, percent_off integer, amount_off_cents integer, max_redemptions integer,
+  redeemed integer not null default 0, expires_at timestamptz, status text not null default 'active', created_at timestamptz not null default now()
+);
+create table if not exists public.platform_admins (
+  user_id uuid primary key references auth.users(id) on delete cascade, email text, created_at timestamptz not null default now()
+);
+alter table public.product_plans enable row level security;
+alter table public.product_features enable row level security;
+alter table public.plan_features enable row level security;
+alter table public.workspace_subscriptions enable row level security;
+alter table public.subscription_events enable row level security;
+alter table public.entitlement_overrides enable row level security;
+alter table public.usage_counters enable row level security;
+alter table public.usage_events enable row level security;
+alter table public.billing_records enable row level security;
+alter table public.coupons enable row level security;
+alter table public.platform_admins enable row level security;
+
+-- ==================== v47-oauth-consume.sql (optional) ====================
+-- Canonical file: supabase/v47-oauth-consume.sql
+-- Application consume already uses atomic DELETE ... RETURNING via PostgREST.
+

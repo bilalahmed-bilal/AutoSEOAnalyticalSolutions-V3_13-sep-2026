@@ -15,11 +15,15 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 body {
   background-color: #f6f2e9;
   color: #132a2e;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .focus-ring:focus-visible {

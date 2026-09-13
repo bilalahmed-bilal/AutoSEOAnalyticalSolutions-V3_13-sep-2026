@@ -15,13 +15,32 @@ function isPrivateIpv4(ip: string): boolean {
     (a === 169 && b === 254) ||
     (a === 172 && b >= 16 && b <= 31) ||
     (a === 192 && b === 168) ||
+    (a === 100 && b >= 64 && b <= 127) ||
     a === 0 ||
     a >= 224
   );
 }
 
+function mappedIpv4(ip: string): string | null {
+  const normalized = ip.toLowerCase();
+  if (!normalized.startsWith("::ffff:")) return null;
+  const rest = normalized.slice(7);
+  if (net.isIP(rest) === 4) return rest;
+  const parts = rest.split(":");
+  if (parts.length === 2) {
+    const hi = parseInt(parts[0], 16);
+    const lo = parseInt(parts[1], 16);
+    if (Number.isFinite(hi) && Number.isFinite(lo)) {
+      return `${(hi >> 8) & 255}.${hi & 255}.${(lo >> 8) & 255}.${lo & 255}`;
+    }
+  }
+  return null;
+}
+
 function isPrivateIpv6(ip: string): boolean {
   const normalized = ip.toLowerCase();
+  const mapped = mappedIpv4(normalized);
+  if (mapped) return isPrivateIpv4(mapped);
   return (
     normalized === "::" ||
     normalized === "::1" ||
@@ -39,9 +58,23 @@ export function isPrivateIp(ip: string): boolean {
   return true;
 }
 
+const BLOCKED_HOSTS = new Set([
+  "localhost",
+  "metadata.google.internal",
+  "metadata.google",
+  "host.docker.internal",
+  "kubernetes.default.svc",
+]);
+
 async function assertSafeHostname(hostname: string): Promise<void> {
   const host = hostname.toLowerCase().replace(/\.$/, "");
-  if (!host || host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) {
+  if (
+    !host ||
+    BLOCKED_HOSTS.has(host) ||
+    host.endsWith(".localhost") ||
+    host.endsWith(".local") ||
+    host.endsWith(".internal")
+  ) {
     throw new Error("Local/private hosts are not allowed.");
   }
 

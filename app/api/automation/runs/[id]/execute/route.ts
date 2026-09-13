@@ -1,14 +1,16 @@
 import { NextRequest } from "next/server";
 import { requireApiAccess, unauthorizedResponse } from "@/lib/auth/api-access";
-import { getTenantContext } from "@/lib/tenant";
 import { getWorkflow, listRuns, updateRun } from "@/lib/automation-repository";
 import { executeWorkflowSteps } from "@/lib/automation-executor";
 import { errorMessage } from "@/lib/unknown";
+import { isRoleResult, requireWorkspaceRole } from "@/lib/auth/rbac";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const a = await requireApiAccess(req);
   if (!a) return unauthorizedResponse();
-  const t = await getTenantContext(req);
+  const permission = await requireWorkspaceRole(req, "editor");
+  if (!isRoleResult(permission)) return permission;
+  const t = permission.tenant;
   if (!t) return Response.json({ error: "Workspace access required." }, { status: 403 });
   const id = (await params).id;
   const runs = await listRuns({ req, workspaceId: t.workspaceId });

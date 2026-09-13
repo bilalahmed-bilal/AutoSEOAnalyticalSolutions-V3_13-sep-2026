@@ -1,10 +1,14 @@
-import { requireApiAccess, unauthorizedResponse } from "@/lib/auth/api-access";
 import { NextRequest, NextResponse } from "next/server";
 import { generateContent, GenerateContentInput } from "@/lib/claude";
+import { isProductAccess, requireProductAccess } from "@/lib/billing/access";
 
 export async function POST(req: NextRequest) {
-  const access = await requireApiAccess(req);
-  if (!access) return unauthorizedResponse();
+  const entitled = await requireProductAccess(req, {
+    feature: "content.generate",
+    minRole: "editor",
+    usageMetric: "ai.generations",
+  });
+  if (!isProductAccess(entitled)) return entitled;
   try {
     const input = (await req.json()) as GenerateContentInput;
 
@@ -13,6 +17,7 @@ export async function POST(req: NextRequest) {
     }
 
     const content = await generateContent(input);
+    await entitled.consume();
     return NextResponse.json({ content });
   } catch (err) {
     console.error("generate-content error:", err);

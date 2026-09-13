@@ -13,9 +13,8 @@ export function validateProductionSecurityConfig(): void {
   ];
 
   const missing = required.filter((name) => !process.env[name]?.trim());
-  if (process.env.AUTOSEO_AUTH_REQUIRED !== "true") {
-    missing.push("AUTOSEO_AUTH_REQUIRED=true");
-  }
+  // NODE_ENV=production already requires authentication via isApiAuthRequired().
+  // Do not crash the process if AUTOSEO_AUTH_REQUIRED is omitted.
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
   if (!appUrl) {

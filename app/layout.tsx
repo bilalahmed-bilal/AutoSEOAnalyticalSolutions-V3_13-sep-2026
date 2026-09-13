@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
+import { productBrand } from "@/lib/product/brand";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AutoSEO — Advance SEO aur Marketing, Ek Jagah",
-  description:
-    "Website, YouTube, aur Facebook ke liye AI-powered SEO aur marketing content — sirf woh cheez connect karein jo aapke pass hai.",
+  title: `${productBrand.productName} — ${productBrand.tagline}`,
+  description: productBrand.description,
+  icons: { icon: productBrand.favicon },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" dir="ltr">
+    <html lang={productBrand.defaultLanguage} dir="ltr">
       <body className="font-body antialiased">{children}</body>
     </html>
   );

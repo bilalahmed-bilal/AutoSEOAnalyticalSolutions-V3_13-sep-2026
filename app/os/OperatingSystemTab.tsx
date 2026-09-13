@@ -29,7 +29,7 @@ export default function OperatingSystemTab() {
   return (
     <div className="space-y-6">
       <section className="border border-line bg-white/60 p-6">
-        <h2 className="font-head text-lg font-semibold">AutoSEO AI Operating System</h2>
+        <h2 className="font-head text-lg font-semibold">Nexora AI Operating System</h2>
         <p className="mt-2 text-sm text-ink/60">
           V35 existing SEO intelligence, monitoring aur strategy ko ek operating cycle mein combine karta hai. Yeh
           system recommendations coordinate karta hai — khud se destructive ya publishing action nahi karta.

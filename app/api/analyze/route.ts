@@ -1,4 +1,3 @@
-import { requireApiAccess, unauthorizedResponse } from "@/lib/auth/api-access";
 import { NextRequest, NextResponse } from "next/server";
 import { crawlPage } from "@/lib/seo-crawler";
 import { analyzeSeo } from "@/lib/claude";
@@ -7,13 +6,20 @@ import { getTenantContext } from "@/lib/tenant";
 import { calculateDeterministicSeoScore } from "@/lib/seo-engine";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 import { writeAudit } from "@/lib/security/audit";
+import { recordAuditEvent } from "@/lib/security/audit-log";
 import { errorMessage } from "@/lib/unknown";
+import { isProductAccess, requireProductAccess } from "@/lib/billing/access";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  const access = await requireApiAccess(req);
-  if (!access) return unauthorizedResponse();
+  const entitled = await requireProductAccess(req, {
+    feature: "website_seo.audit",
+    minRole: "viewer",
+    usageMetric: "seo.audits",
+  });
+  if (!isProductAccess(entitled)) return entitled;
+  const access = entitled.access;
   const rate = checkRateLimit(req, "seo-analyze");
   const tenant = access.authenticated ? await getTenantContext(req) : null;
   if (access.authenticated && !tenant)
@@ -66,10 +72,19 @@ export async function POST(req: NextRequest) {
       deterministic.score,
       analysis.score
     );
+    await entitled.consume();
     writeAudit({
       action: "seo_analysis",
-      actor: "anonymous-local",
+      actor: access.user.id,
       metadata: { url: crawl.url, score: merged.score },
+    });
+    await recordAuditEvent({
+      workspaceId: tenant?.workspaceId,
+      actorUserId: access.user.id,
+      action: "seo.analysis",
+      entityType: "url",
+      entityId: crawl.url,
+      metadata: { score: merged.score },
     });
 
     return NextResponse.json({ crawl, analysis: merged });

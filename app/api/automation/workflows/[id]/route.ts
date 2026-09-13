@@ -1,14 +1,16 @@
 import { NextRequest } from "next/server";
 import { requireApiAccess, unauthorizedResponse } from "@/lib/auth/api-access";
-import { getTenantContext } from "@/lib/tenant";
 import { getWorkflow, updateWorkflow } from "@/lib/automation-repository";
 import { validateWorkflowInput } from "@/lib/automation-workflows";
 import { errorMessage } from "@/lib/unknown";
+import { isRoleResult, requireWorkspaceRole } from "@/lib/auth/rbac";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const a = await requireApiAccess(req);
   if (!a) return unauthorizedResponse();
-  const t = await getTenantContext(req);
+  const permission = await requireWorkspaceRole(req, "viewer");
+  if (!isRoleResult(permission)) return permission;
+  const t = permission.tenant;
   if (!t) return Response.json({ error: "Workspace access required." }, { status: 403 });
   const w = await getWorkflow({ req, workspaceId: t.workspaceId }, (await params).id);
   return w ? Response.json({ workflow: w }) : Response.json({ error: "Workflow not found." }, { status: 404 });
@@ -16,8 +18,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const a = await requireApiAccess(req);
   if (!a) return unauthorizedResponse();
-  const t = await getTenantContext(req);
-  if (!t) return Response.json({ error: "Workspace access required." }, { status: 403 });
+  const permission = await requireWorkspaceRole(req, "editor");
+  if (!isRoleResult(permission)) return permission;
+  const t = permission.tenant;
   const id = (await params).id;
   const b = await req.json().catch(() => ({}));
   try {

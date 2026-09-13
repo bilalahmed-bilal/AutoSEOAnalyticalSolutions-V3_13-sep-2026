@@ -1,19 +1,19 @@
-import { oauthConfig, type OAuthProvider } from "@/lib/oauth/config";
+import { googleOAuthConfigProvider, oauthConfig } from "@/lib/oauth/config";
 import { decryptSecret, encryptSecret } from "@/lib/security/secrets";
 import { supabaseAdmin } from "@/lib/db/supabase-rest";
 import { type UnknownRecord } from "@/lib/unknown";
 
 export async function refreshConnectionIfNeeded(connection: UnknownRecord): Promise<UnknownRecord> {
   const credentials = JSON.parse(decryptSecret(String(connection.encrypted_credentials)));
-  const provider = String(connection.provider) as OAuthProvider | "wordpress" | "shopify" | "custom";
-  if (provider !== "google-youtube" && provider !== "google-search-console") return credentials;
+  const oauthProvider = googleOAuthConfigProvider(String(connection.provider || ""));
+  if (!oauthProvider) return credentials;
 
   const expiresAt = Number(
     credentials.expiresAt || (connection.token_expires_at ? Date.parse(connection.token_expires_at) : 0)
   );
   if (!credentials.refreshToken || (expiresAt && expiresAt > Date.now() + 120_000)) return credentials;
 
-  const c = oauthConfig(provider as "google-youtube" | "google-search-console");
+  const c = oauthConfig(oauthProvider);
   const res = await fetch(c.token, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -32,6 +32,7 @@ export async function refreshConnectionIfNeeded(connection: UnknownRecord): Prom
     ...credentials,
     accessToken: data.access_token,
     expiresAt: Date.now() + Number(data.expires_in || 3600) * 1000,
+    ...(typeof data.scope === "string" && data.scope.trim() ? { scope: data.scope } : {}),
   };
   await supabaseAdmin(
     "connections",
