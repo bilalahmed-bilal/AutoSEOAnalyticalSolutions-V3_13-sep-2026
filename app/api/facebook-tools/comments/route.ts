@@ -3,7 +3,7 @@ import { isFacebookSecurityContext, requireFacebookAccess } from "@/lib/facebook
 import { fetchPostComments, replyToComment } from "@/lib/publishers/facebook";
 import { generateCommentReply } from "@/lib/claude";
 import type { BusinessProfile, Language } from "@/lib/claude";
-import { errorMessage } from "@/lib/unknown";
+import { jsonPublicError } from "@/lib/security/public-error";
 import { sameOriginWrite } from "@/lib/security/request";
 import { isProductAccess, requireProductAccess } from "@/lib/billing/access";
 
@@ -24,25 +24,25 @@ export async function POST(req: NextRequest) {
     };
 
     if (action === "fetch") {
-      if (!postId) return NextResponse.json({ error: "Post ID zaroori hai." }, { status: 400 });
+      if (!postId) return NextResponse.json({ error: "Post ID is required." }, { status: 400 });
       const comments = await fetchPostComments(access.settings, postId);
       return NextResponse.json({ comments });
     }
     if (action === "draft") {
       if (!message || !profile)
-        return NextResponse.json({ error: "Comment text aur profile zaroori hain." }, { status: 400 });
-      const reply = await generateCommentReply(message, profile, language || "ur");
+        return NextResponse.json({ error: "Comment text and profile are required." }, { status: 400 });
+      const reply = await generateCommentReply(message, profile, language || "en");
       return NextResponse.json({ reply, limitation: "GENERATION_ONLY until you choose send." });
     }
     if (action === "send") {
       if (!commentId || !message)
-        return NextResponse.json({ error: "Comment ID aur reply text zaroori hain." }, { status: 400 });
+        return NextResponse.json({ error: "Comment ID and reply text are required." }, { status: 400 });
       await replyToComment(access.settings, commentId, message);
       await entitled.consume();
       return NextResponse.json({ ok: true });
     }
     return NextResponse.json({ error: "Unknown action." }, { status: 400 });
   } catch (err: unknown) {
-    return NextResponse.json({ error: errorMessage(err, "Kuch ghalat ho gaya.") }, { status: 500 });
+    return jsonPublicError(err, "Facebook comments could not be processed.");
   }
 }

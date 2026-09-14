@@ -33,7 +33,7 @@ export async function testYouTubeConnection(settings: YouTubeSettings): Promise<
     if (!res.ok) {
       return {
         ok: false,
-        message: `YouTube ne connection reject kar di (status ${res.status}). Access token check karein — expire to nahi ho gaya?`,
+        message: `YouTube rejected the connection (status ${res.status}). Check the access token — it may have expired.`,
       };
     }
     const data = await res.json();
@@ -43,7 +43,7 @@ export async function testYouTubeConnection(settings: YouTubeSettings): Promise<
       message: channelName ? `Connected: "${channelName}".` : "Connected.",
     };
   } catch {
-    return { ok: false, message: "YouTube tak nahi pahunch paye. Dobara koshish karein." };
+    return { ok: false, message: "Could not reach YouTube. Please try again." };
   }
 }
 
@@ -84,12 +84,12 @@ async function fetchYouTubeSnippetForUpdate(settings: YouTubeSettings, videoId: 
     signal: AbortSignal.timeout(10_000),
   });
   if (!getRes.ok) {
-    throw new Error(`Video fetch failed (status ${getRes.status}). Video ID check karein.`);
+    throw new Error(`Video fetch failed (status ${getRes.status}). Check the Video ID.`);
   }
   const getData = await getRes.json();
   const existingSnippet = getData.items?.[0]?.snippet;
   if (!existingSnippet) {
-    throw new Error("Ye video ID nahi mila aapke connected channel par.");
+    throw new Error("This video ID was not found on your connected channel.");
   }
   return existingSnippet;
 }
@@ -183,11 +183,11 @@ export async function fetchVideoSnippet(settings: YouTubeSettings, videoId: stri
     signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) {
-    throw new Error(`Video fetch failed (status ${res.status}). Video ID check karein.`);
+    throw new Error(`Video fetch failed (status ${res.status}). Check the Video ID.`);
   }
   const data = await res.json();
   const item = data.items?.[0];
-  if (!item) throw new Error("Ye video ID nahi mila aapke connected channel par.");
+  if (!item) throw new Error("This video ID was not found on your connected channel.");
   return {
     videoId: item.id,
     title: item.snippet.title,
@@ -211,7 +211,7 @@ export async function listChannelVideos(settings: YouTubeSettings, maxResults = 
   if (!channelRes.ok) throw new Error(`Channel fetch failed (status ${channelRes.status}).`);
   const channelData = await channelRes.json();
   const uploadsPlaylistId = channelData.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
-  if (!uploadsPlaylistId) throw new Error("Uploads playlist nahi mili.");
+  if (!uploadsPlaylistId) throw new Error("The uploads playlist was not found.");
 
   const playlistRes = await fetch(
     `${YT_API}/playlistItems?part=contentDetails&playlistId=${uploadsPlaylistId}&maxResults=${maxResults}`,
@@ -266,7 +266,7 @@ export async function fetchPublicChannelStats(
   if (!res.ok) throw new Error(`Channel lookup failed (status ${res.status}).`);
   const data = await res.json();
   const item = data.items?.[0];
-  if (!item) throw new Error(`"${channelIdOrHandle}" naam ka channel nahi mila.`);
+  if (!item) throw new Error(`No channel named "${channelIdOrHandle}" was found.`);
   return {
     channelId: item.id,
     title: item.snippet.title,
@@ -309,7 +309,7 @@ export async function fetchRetentionInsights(settings: YouTubeSettings, videoId:
   }
   const data = await res.json();
   const row = data.rows?.[0];
-  if (!row) throw new Error("Is video ke liye koi analytics data nahi mila (nayi video ho sakti hai).");
+  if (!row) throw new Error("No analytics data was found for this video (it may be too new).");
   return {
     averageViewDurationSeconds: row[0],
     averageViewPercentage: row[1],

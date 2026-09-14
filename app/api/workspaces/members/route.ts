@@ -48,13 +48,13 @@ export async function POST(req: NextRequest) {
     invited = JSON.parse(inviteText);
   } catch {}
   if (!invite.ok && invite.status !== 422)
-    return NextResponse.json({ error: "Invite send nahi ho saka." }, { status: invite.status });
+    return NextResponse.json({ error: "The invite could not be sent." }, { status: invite.status });
   const invitedUserId = invited?.id;
   if (!invitedUserId)
     return NextResponse.json(
       {
         error:
-          "User invite ho gaya ho sakta hai, lekin user ID resolve nahi hui. Existing user ko direct member ID ke zariye add karein.",
+          "The user may have been invited, but the user ID could not be resolved. Add an existing user directly by member ID.",
       },
       { status: 409 }
     );

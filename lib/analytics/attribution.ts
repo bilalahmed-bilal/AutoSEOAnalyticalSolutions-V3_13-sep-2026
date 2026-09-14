@@ -85,12 +85,12 @@ export async function buildAttributionReport(
     .filter((h: UnknownRecord) => h.event_type === "published" || h.event_type === "rollback_published")
     .sort((a: UnknownRecord, b: UnknownRecord) => String(a.created_at).localeCompare(String(b.created_at)))
     .pop();
-  if (!published) throw new Error("Is draft ke liye koi successful publication history nahi mili.");
+  if (!published) throw new Error("No successful publication history was found for this draft.");
   const publicationDate = new Date(published.created_at);
   const connection = await getSearchConsoleConnection(workspaceId);
   if (!connection) throw new Error("Google Search Console connection not configured.");
   const siteUrl = connection.credentials.siteUrl;
-  if (!siteUrl) throw new Error("Search Console property configured nahi hai.");
+  if (!siteUrl) throw new Error("No Search Console property is configured.");
 
   // Search Console data can lag by a few days. Exclude a 3-day attribution buffer around publication.
   const baselineEnd = shift(publicationDate, -4);

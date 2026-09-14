@@ -5,6 +5,7 @@ import { addDraftRemote, listDraftsRemote, getPublishSettingsRemote, updateDraft
 import { getTenantContext } from "@/lib/tenant";
 import { requireWorkspaceRole, isRoleResult } from "@/lib/auth/rbac";
 import { isProductAccess, requireProductAccess } from "@/lib/billing/access";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 import { publishFeatureForChannel } from "@/lib/billing/route-policy";
 import { enqueueJob, publishJobKey } from "@/lib/jobs/queue";
 
@@ -20,6 +21,13 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const access = await requireApiAccess(req);
   if (!access) return unauthorizedResponse();
+  const rate = checkRateLimit(req, "publish");
+  if (!rate.ok) {
+    return NextResponse.json(
+      { error: "Too many publish requests. Try again shortly." },
+      { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
+    );
+  }
   if (access.authenticated) {
     const permission = await requireWorkspaceRole(req, "editor");
     if (!isRoleResult(permission)) return permission;
@@ -55,11 +63,11 @@ export async function POST(req: NextRequest) {
       if (!isProductAccess(entitled)) return entitled;
     }
     if (channel === "youtube" && !videoId) {
-      return NextResponse.json({ error: "YouTube ke liye ek existing Video ID batana zaroori hai." }, { status: 400 });
+      return NextResponse.json({ error: "An existing YouTube video ID is required." }, { status: 400 });
     }
     const draftKind = kind || "new_content";
     if (draftKind === "seo_fix" && !targetUrl) {
-      return NextResponse.json({ error: "SEO fix ke liye target URL batana zaroori hai." }, { status: 400 });
+      return NextResponse.json({ error: "A target URL is required for SEO fixes." }, { status: 400 });
     }
 
     const draft = await addDraftRemote(
@@ -92,7 +100,7 @@ export async function POST(req: NextRequest) {
         status: "approved",
         errorMessage: undefined,
       });
-      if (!approved) return NextResponse.json({ error: "Draft approve nahi ho saka." }, { status: 500 });
+      if (!approved) return NextResponse.json({ error: "The draft could not be approved." }, { status: 500 });
 
       if (tenant?.workspaceId) {
         const job = await enqueueJob({
@@ -108,13 +116,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         draft: approved,
         queued: false,
-        message: "Demo mode: durable publishing ke liye Supabase + worker configure karein.",
+        message: "Demo mode: configure Supabase and a worker for durable publishing.",
       });
     }
 
     return NextResponse.json({ draft });
   } catch (err) {
     console.error("queue add error:", err);
-    return NextResponse.json({ error: "Draft queue mein add nahi ho saka." }, { status: 500 });
+    return NextResponse.json({ error: "The draft could not be added to the queue." }, { status: 500 });
   }
 }

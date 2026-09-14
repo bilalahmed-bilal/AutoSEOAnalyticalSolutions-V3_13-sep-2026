@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     );
     return NextResponse.json({ pages: results });
   } catch {
-    return NextResponse.json({ error: "Competitor data load nahi ho saka." }, { status: 500 });
+    return NextResponse.json({ error: "Competitor data could not be loaded." }, { status: 500 });
   }
 }
 
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
   try {
     const { pageIdOrUsername } = (await req.json()) as { pageIdOrUsername?: string };
     if (!pageIdOrUsername?.trim()) {
-      return NextResponse.json({ error: "Page ID ya username batana zaroori hai." }, { status: 400 });
+      return NextResponse.json({ error: "A page ID or username is required." }, { status: 400 });
     }
     const entry = await addSocialCompetitor(
       { req, workspaceId: access.workspaceId },
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     );
     return NextResponse.json({ entry });
   } catch {
-    return NextResponse.json({ error: "Add nahi ho saka." }, { status: 500 });
+    return NextResponse.json({ error: "Could not add." }, { status: 500 });
   }
 }
 
@@ -63,10 +63,10 @@ export async function DELETE(req: NextRequest) {
   if (!isFacebookSecurityContext(access)) return access;
   try {
     const { id } = (await req.json()) as { id?: string };
-    if (!id) return NextResponse.json({ error: "ID zaroori hai." }, { status: 400 });
+    if (!id) return NextResponse.json({ error: "ID is required." }, { status: 400 });
     await removeSocialCompetitor({ req, workspaceId: access.workspaceId }, id);
     return NextResponse.json({ ok: true });
   } catch {
-    return NextResponse.json({ error: "Remove nahi ho saka." }, { status: 500 });
+    return NextResponse.json({ error: "Could not remove." }, { status: 500 });
   }
 }

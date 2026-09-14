@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     if (!niche || !niche.trim()) {
       return NextResponse.json({ error: "Niche is required." }, { status: 400 });
     }
-    const ideas = await generateTrendIdeas(niche.trim(), language || "ur");
+    const ideas = await generateTrendIdeas(niche.trim(), language || "en");
     await entitled.consume();
     return NextResponse.json({ ideas });
   } catch (err) {

@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     }
     const variants = await generateVariants({
       channel: "youtube",
-      language: language || "ur",
+      language: language || "en",
       topic,
       profile,
     });

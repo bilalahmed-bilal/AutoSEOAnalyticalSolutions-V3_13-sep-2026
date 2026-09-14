@@ -145,7 +145,7 @@ export async function processOnePublishJob(workerId = newWorkerId("publish")) {
     }
 
     const link = await publishDraftWithSettings(draft, settings);
-    if (!link) throw new Error("Publisher ne verification link return nahi kiya.");
+    if (!link) throw new Error("The publisher did not return a verification link.");
 
     if (youtubeIntentFingerprint) {
       await supabaseAdmin(

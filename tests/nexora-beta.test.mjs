@@ -16,7 +16,7 @@ test("production auth is fail-closed even when AUTOSEO_AUTH_REQUIRED is false", 
 test("free beta defaults on and billing stays off", () => {
   const beta = read("lib/product/beta.ts");
   assert.match(beta, /NEXORA_BETA_MODE === "false"/);
-  assert.match(read("lib/billing/adapter.ts"), /Billing is off for Nexora Free Beta/);
+  assert.match(read("lib/billing/adapter.ts"), /Billing is off for AIBISORA Free Beta/);
   assert.match(read("app/api/billing/checkout/route.ts"), /BILLING_DISABLED_FOR_BETA/);
 });
 
@@ -88,4 +88,11 @@ test("requireYouTubeAccess and requireFacebookAccess call requireApiAccess", () 
 test("rate limiter documents in-process backend", () => {
   assert.match(read("lib/security/rate-limit.ts"), /REQUIRES_PRODUCTION_INFRASTRUCTURE/);
   assert.match(read("lib/security/rate-limit.ts"), /in-process/);
+});
+
+test("UI language defaults to English and the selector is registry-driven", () => {
+  assert.doesNotMatch(read("app/page.tsx"), /useState<Language>\("ur"\)/);
+  assert.match(read("app/page.tsx"), /LanguageSelector/);
+  assert.match(read("lib/i18n/registry.ts"), /enabled: true/);
+  assert.match(read("lib/billing/route-policy.ts"), /\/api\/preferences/);
 });

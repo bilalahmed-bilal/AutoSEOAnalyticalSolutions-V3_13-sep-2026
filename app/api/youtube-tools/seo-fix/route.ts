@@ -17,15 +17,15 @@ export async function POST(req: NextRequest) {
       language?: Language;
     };
     if (!videoId || !niche) {
-      return NextResponse.json({ error: "Video ID aur niche dono zaroori hain." }, { status: 400 });
+      return NextResponse.json({ error: "Video ID and niche are both required." }, { status: 400 });
     }
 
     const existing = await fetchVideoSnippet(access.settings, videoId);
-    const fix = await generateYouTubeSeoFix(existing, niche, language || "ur");
+    const fix = await generateYouTubeSeoFix(existing, niche, language || "en");
 
     return NextResponse.json({ existing, fix });
   } catch (err: unknown) {
     console.error("youtube seo-fix error:", err);
-    return NextResponse.json({ error: errorMessage(err, "SEO fix generate nahi ho saka.") }, { status: 500 });
+    return NextResponse.json({ error: errorMessage(err, "Could not generate the SEO fix.") }, { status: 500 });
   }
 }

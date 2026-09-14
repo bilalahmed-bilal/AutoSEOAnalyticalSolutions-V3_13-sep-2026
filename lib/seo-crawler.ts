@@ -193,7 +193,7 @@ async function fetchTextResource(url: string): Promise<{ statusCode: number | nu
     const safe = await assertSafeUrl(url);
     const response = await fetch(safe, {
       redirect: "manual",
-      headers: { "User-Agent": "AutoSEO-Bot/2.0", Accept: "text/plain,application/xml,text/xml,*/*;q=0.5" },
+      headers: { "User-Agent": "AIBISORA-Bot/1.0", Accept: "text/plain,application/xml,text/xml,*/*;q=0.5" },
       signal: AbortSignal.timeout(10_000),
     });
     if (response.status >= 300 && response.status < 400) {
@@ -202,7 +202,7 @@ async function fetchTextResource(url: string): Promise<{ statusCode: number | nu
       const redirected = await assertSafeUrl(new URL(location, safe).toString());
       const next = await fetch(redirected, {
         redirect: "error",
-        headers: { "User-Agent": "AutoSEO-Bot/2.0" },
+        headers: { "User-Agent": "AIBISORA-Bot/1.0" },
         signal: AbortSignal.timeout(10_000),
       });
       if (!next.ok) return { statusCode: next.status, text: null };

@@ -21,10 +21,10 @@ export async function POST(req: NextRequest) {
       language?: Language;
     };
     if (!topics || topics.length === 0 || !profile) {
-      return NextResponse.json({ error: "Topics aur business profile zaroori hain." }, { status: 400 });
+      return NextResponse.json({ error: "Topics and a business profile are required." }, { status: 400 });
     }
     if (topics.length > 10) {
-      return NextResponse.json({ error: "Ek baar mein zyada se zyada 10 topics." }, { status: 400 });
+      return NextResponse.json({ error: "A maximum of 10 topics is allowed at once." }, { status: 400 });
     }
 
     const results = [];
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       try {
         const content = await generateContent({
           channel: "facebook",
-          language: language || "ur",
+          language: language || "en",
           topic,
           profile,
         });
@@ -54,6 +54,6 @@ export async function POST(req: NextRequest) {
     await entitled.consume();
     return NextResponse.json({ results });
   } catch {
-    return NextResponse.json({ error: "Bulk scheduling fail ho gayi." }, { status: 500 });
+    return NextResponse.json({ error: "Bulk scheduling failed." }, { status: 500 });
   }
 }

@@ -1,408 +1,160 @@
-# Nexora (customer-facing)
-
-This repository is the Nexora product. Internal engineering names may still say AutoSEO.
-
-**Free Beta:** billing and paid checkout are OFF. See `docs/NEXORA.md` for setup, entitlements, OAuth, Admin, and known limitations.
-
-YouTube and Facebook tools in the app are implemented product surfaces, not "Coming Soon" cards. Provider capabilities that are generation-only or API-limited are labeled in the product and in `docs/NEXORA.md`.
-
-Content Strategy, Content Generator, Publish, and Analytics are shared across Website / YouTube / Facebook categories. Sub-tab clicks no longer jump back to the Website category.
-
-## Facebook: All 12 tabs now fully implemented (not placeholders)
-
-Same treatment as YouTube — Facebook's 8 "Coming Soon" placeholders are now
-real, working tools:
-
-- **Page & Post Discovery Optimization** — fetches the Page's current About
-  text, generates an improved version (Facebook's own discovery + Google
-  indexing of public Pages), and can apply it directly (needs
-  `pages_manage_metadata` permission on the Page token, in addition to
-  `pages_manage_posts`).
-- **Hashtag & Keyword Research** — Claude + live web search for current,
-  genuinely relevant hashtags per niche.
-- **Post A/B Testing** — reuses `generateVariants()` (channel="facebook"),
-  either variant can be sent straight to the approval queue.
-- **Bulk Post Scheduler** — paste up to 10 topics (one per line), generates
-  and queues a post for each — always manual approval (bulk = high-risk).
-- **Comment & Engagement Assistant** — fetches a post's comments, drafts an
-  AI reply per comment on request, and only sends a reply when the user
-  explicitly clicks "Send" per comment (no auto-replying).
-- **Post Performance Analytics** — full view of recent posts' likes/
-  comments/shares with underperforming ones flagged, reusing the Phase 4.5
-  analytics functions.
-- **Competitor Page Tracking** — add any public Page (by ID or username),
-  see follower count, remove when done — mirrors YouTube's competitor
-  tracking (same underlying `CompetitorChannel` store, generic across
-  platforms).
-- **Audience Insights** — **honestly attempts** Meta's remaining
-  `page_fans_gender_age` metric and surfaces a clear message if
-  unavailable, since Meta has significantly restricted/deprecated classic
-  Audience Insights — no fabricated demographic data.
-
-New files: `app/api/facebook-tools/*` (8 new routes), new functions in
-`lib/publishers/facebook.ts` (`fetchPageInfo`, `updatePageInfo`,
-`fetchPostComments`, `replyToComment`, `fetchPublicPageStats`,
-`fetchAudienceInsights`) and `lib/claude.ts` (`generateFacebookHashtags`,
-`generatePageSeoFix`, `generateCommentReply`). Competitor tracking reuses
-the same `lib/store.ts` functions built for YouTube (already
-platform-generic).
-
-## YouTube: All 13 tabs now fully implemented (not placeholders)
-
-Every tab under the YouTube category now has real, working functionality —
-the 10 that were "Coming Soon" placeholders are built out:
-
-- **Keyword Research** — Claude + live web search finds realistically-
-  rankable YouTube search terms for a niche.
-- **Video SEO Studio** — fetches an existing video's current title/
-  description/tags (`fetchVideoSnippet`), generates an improved version,
-  sends it through the existing Publish/approval pipeline.
-- **Tag Generator** — 12-15 relevant tags for any topic, copy-to-clipboard.
-- **Channel Audit** — lists the channel's videos (via the uploads playlist)
-  and flags ones performing well below the channel's own average.
-- **Thumbnail & Title A/B Testing** — reuses `generateVariants()` (Phase 5)
-  to produce two distinct titles; either can be sent to an existing video ID.
-- **Bulk Video Optimizer** — select multiple videos, generate fixes for all
-  of them, and queue them — bulk changes always go through manual approval
-  regardless of the auto-publish setting (Section 3's risk-tier principle).
-- **Community Post Generator** — generates post text/polls; **honestly
-  limited to generation only**, since YouTube has no public API for posting
-  to the Community tab — the user copies it in manually.
-- **Video Performance Analytics** — full sortable view of the channel's
-  videos with view/like/comment counts and totals/averages.
-- **Competitor Channel Tracking** — add any public channel (by ID or
-  @handle), see its subscriber/view/video counts, remove when done.
-- **Watch Time & Retention Insights** — YouTube Analytics API v2; if the
-  connected token lacks `yt-analytics.readonly`, the UI asks the user to
-  reconnect with Google OAuth instead of showing invented data.
-
-New files: `app/api/youtube-tools/*` (9 new routes), new functions added to
-`lib/publishers/youtube.ts` (`fetchVideoSnippet`, `listChannelVideos`,
-`fetchPublicChannelStats`, `fetchRetentionInsights`) and `lib/claude.ts`
-(`generateYouTubeKeywords`, `generateYouTubeTags`, `generateYouTubeSeoFix`,
-`generateCommunityPost`), and `lib/store.ts` gained competitor-channel
-tracking (`CompetitorChannel`, `listCompetitorChannels`,
-`addCompetitorChannel`, `removeCompetitorChannel`).
-
-**Facebook's equivalent 8 tabs are still placeholders** — Facebook wasn't
-part of this pass; the same build-out pattern applies whenever that's next.
-
-## Navigation: Channel-first (Website / YouTube / Facebook / Overview)
-
-Per a product decision to focus specially on YouTube and Facebook management
-(not just website SEO), the UI's 19 tabs are now organized under four
-top-level categories instead of one flat row:
-
-- **🌐 Website** (9 tabs) — SEO Analyzer, Keyword Research, Competitor
-  Intelligence, Content Strategy, Technical SEO, Internal Linking, Local
-  SEO, plus Content Generator and Publish.
-- **📺 YouTube** (3 tabs) — Content Generator, Publish, AI Content Studio.
-- **📘 Facebook** (3 tabs) — Content Generator, Publish, AI Content Studio.
-- **⚙️ Overview & Settings** (9 tabs) — Analytics, Automation, Quality &
-  Fact Check, SEO Experiments, Monitoring & Alerts, Advanced Analytics &
-  ROI, AI SEO Strategist, AI Operating System, System.
-
-**Honest imbalance, not a bug:** Website has far more tools than YouTube/
-Facebook right now because the advanced SEO-suite tools (keyword research,
-technical SEO, local SEO, internal linking, competitor intelligence) were
-built as website-only tools — there's no "YouTube Keyword Research" or
-"Facebook Technical SEO" yet. Content Generator, Publish, and AI Content
-Studio already support all three channels internally (via a channel
-selector), so they appear under all three category tabs. Building out
-channel-specific advanced tools for YouTube/Facebook (the TubeBuddy/vidIQ-
-style features from the Master Requirements Document's Section 4.8, and
-equivalent Facebook-specific tools) is the natural next step to balance this
-out, given the stated focus on YouTube/Facebook management.
-
-## V17 Content & Semantic Intelligence
-
-- Readable page-content extraction
-- Actual keyword occurrence/density analysis
-- Semantic term and lightweight entity signals
-- Search-intent-aware topic gaps
-- Internal-link opportunity signals
-- Deterministic content intelligence API at `/api/content-intelligence`
-
-# AutoSEO V10
-
-# AutoSEO — Phase 1-5 + Advanced SEO Fixing + Shopify (Full Build)
-
-This is the **complete Phase 1-5** foundation, plus an **advanced SEO
-fixing** feature that goes beyond reporting issues to actually generating
-and (where the connected site supports it) applying fixes to existing live
-pages. Described in `docs/MASTER-REQUIREMENTS.md`.
-
-## Shopify (new — second no-code website connection)
-
-Per Section 4.1's developer vs. non-developer segmentation: WordPress covers
-one major no-code platform, **Shopify covers the next-most-common one for
-small e-commerce businesses in the target market** — no code, no developer
-needed. The user generates credentials entirely from their own Shopify
-admin (Settings → Apps and sales channels → Develop apps → create an app →
-enable the `write_content` scope → install → copy the Admin API access
-token) and pastes it into the Publish tab's new "Shopify" option, alongside
-"WordPress" and "Custom Site."
-
-- `lib/publishers/shopify.ts` — new adapter: create/update Shopify **Pages**
-  (title, body, and meta description via the `global`/`description_tag`
-  metafield — the same field Shopify's own admin SEO fields use).
-- Wired into `lib/publish-dispatch.ts`, `lib/store.ts` (new
-  `ShopifySettings`, `WebsitePlatformType` extended), and
-  `app/api/settings/route.ts`.
-- Both new-content publishing and the advanced SEO-fix "update existing
-  page" flow work for Shopify, same as WordPress.
-
-## Advanced SEO Fixing (new)
-
-The SEO Analyzer tab now has a **"Fixes Generate کریں"** button after any
-analysis. It produces concrete, ready-to-use values for the issues found:
-
-- A corrected title and meta description
-- Suggested H2 headings
-- A schema.org JSON-LD snippet
-
-These can be sent to the **Publish** tab's approval queue as a special
-**"SEO Fix"** draft (distinct from new content — it targets an existing
-page's URL). Approving it calls a new `applySeoFixes*` function on the
-relevant adapter:
-
-- **Custom Site adapter**: sends an `"update_seo_fields"` action to the
-  site's own receiver endpoint (see the updated
-  `docs/custom-site-receiver-example.md`) — the site owner's code decides
-  exactly how title/meta/headings/schema get applied. This is the
-  architecturally right approach for the product: AutoSEO never needs a
-  user's source code or database access, only a small endpoint the owner
-  builds and fully controls (can revoke the API key anytime).
-- **WordPress adapter**: looks up the existing post by URL slug and updates
-  its title + excerpt via the REST API. **Honest limitation:** WordPress
-  core has no native meta-description or schema-markup field (those come
-  from plugins like Yoast/RankMath with their own custom-field names) — so
-  suggested headings and schema JSON-LD are shown for the user to paste in
-  manually for WordPress sites, rather than guessing at a plugin's field
-  names and possibly writing to the wrong place.
-
-This is genuinely different from giving an AI tool direct GitHub/server
-access to a site's source code — see the discussion in
-`docs/MASTER-REQUIREMENTS.md` (search "endpoint-based" if added there) for
-why the endpoint-based design is the right one for a multi-tenant product
-where users won't want to expose their whole site.
-
-**Stack (current stable versions, updated Sept 2026):** Next.js 16 (App Router),
-React 19, TypeScript, Tailwind CSS v4 (CSS-first config via `@theme` in
-`app/globals.css` — there is no `tailwind.config.js` in v4), Anthropic SDK,
-cheerio (HTML parsing for the SEO crawler).
-
-## V2 hardening update (September 2026)
-
-This build includes a production-oriented security and SEO foundation update:
-
-- deterministic SEO scoring is now the primary numeric score; Claude is used for interpretation and additional opportunities;
-- the SEO crawler blocks localhost/private/reserved targets, validates redirects, limits response size, and only accepts HTML;
-- connected publishing credentials are encrypted at rest with AES-256-GCM when `AUTOSEO_ENCRYPTION_KEY` is configured;
-- SEO analysis has a basic request rate limit;
-- security/workflow events can be recorded in `data/audit.log.jsonl`;
-- new security details and remaining production requirements are documented in `docs/SECURITY-V2.md`.
-
-**Still required before public multi-tenant production:** PostgreSQL/Supabase, real authentication/authorization, shared rate limiting, durable queue/worker scheduling, transaction/idempotency controls, and network-level SSRF isolation. YouTube in-app Google OAuth already exists; live provider E2E is environment-specific.
-
-## What's here (Phase 1 + Phase 2 + Phase 3)
-
-- `app/page.tsx` — the UI, now with three tabs:
-  - **Content Generator** (Phase 1): business profile → pick a channel (website /
-    YouTube / Facebook, each fully independent) → pick a language → describe a
-    topic → generate a draft. For the website channel, a new button sends the
-    draft to the approval queue.
-  - **SEO Analyzer** (Phase 2): enter any URL → the app crawls the page and asks
-    Claude to score it (0-100) and list prioritized, actionable fixes.
-  - **Publish** (Phase 3, new): choose "Custom Site" (for KSTS/Next.js or any
-    other custom-built site, via a webhook + API key) or "WordPress" (via
-    Application Password), then review, approve, or reject queued drafts —
-    approving one publishes it live.
-- `app/api/generate/route.ts` — content generation API route.
-- `app/api/analyze/route.ts` — SEO analysis API route (crawl → Claude scoring).
-- `app/api/settings/route.ts` — save/test WordPress connection credentials.
-- `app/api/queue/route.ts` — list drafts / add a new draft to the approval queue.
-- `app/api/queue/[id]/route.ts` — approve (→ publish) or reject a queued draft.
-- `lib/claude.ts` — the Claude API wrapper: `generateContent()` (Phase 1) and
-  `analyzeSeo()` (Phase 2).
-- `lib/seo-crawler.ts` — fetches a URL and extracts on-page SEO signals.
-- `lib/store.ts` — lightweight local JSON-file data store (`data/db.json`) for
-  the approval queue and WordPress settings. This is a stand-in for the real
-  Postgres database (Section 5.3 of the Master Requirements Document) that
-  Phase 4 introduces when the platform becomes multi-tenant — the data shapes
-  here (`ContentDraft`, `WordPressSettings`) are designed to carry over
-  unchanged when that migration happens.
-- `lib/publishers/wordpress.ts` — WordPress publish adapter (Section 5.2):
-  tests the WordPress connection and publishes an approved draft as a live
-  post via the WordPress REST API.
-- `lib/publishers/custom-site.ts` — generic publish adapter for **any other
-  site**, including custom-built ones like KSTS (Next.js) that have no
-  standard content API. Works via a small webhook endpoint the site owner
-  adds to their own project — see `docs/INTEGRATIONS.md` for a ready-to-paste
-  Next.js receiver example. Future adapters follow this same file-per-platform
-  pattern.
-- `docs/INTEGRATIONS.md` — YouTube/Facebook Google-and-Meta app registration,
-  in-app OAuth, and the custom-site receiver example.
-- `docs/MASTER-REQUIREMENTS.md` — the full project plan.
-
-### Phase 4 additions (new)
-
-- `lib/publishers/youtube.ts` — updates title/description/tags on an
-  **existing** YouTube video (uploading new videos needs the raw file, which
-  this text pipeline doesn't produce — this covers the TubeBuddy/vidIQ
-  "SEO Studio" re-optimization use case from Section 4.8).
-- `lib/publishers/facebook.ts` — posts to a connected Facebook Page's feed.
-- `lib/publish-dispatch.ts` — routes an approved draft to the right adapter
-  based on its channel; used by both manual approval and auto-publish.
-- **Permission model** (Section 3, simplified to one mode per platform for
-  v1): each connection (Website/YouTube/Facebook) has a toggle — "Suggest
-  only" (sits in the Approval Queue until manually approved) or "Auto-publish"
-  (fires immediately, still logged in the queue as "published").
-- The Approval Queue now shows a channel badge and handles all three channels.
-
-### Phase 4.5 additions (new — the Analytics pillar, Section 1a)
-
-- `lib/analytics/youtube.ts` — channel stats (subscribers, total views,
-  video count) and per-video stats (views/likes/comments) via YouTube Data
-  API v3's `statistics` part. Watch-time/retention reports use the YouTube
-  Analytics API (`lib/analytics/youtube-deep.ts`) and require reconnect if
-  the stored token lacks `yt-analytics.readonly`.
-- `lib/analytics/facebook.ts` — Page follower count and recent posts'
-  engagement (likes/comments/shares) via the Meta Graph API.
-- `lib/analytics/audit.ts` — flags content performing well below the
-  channel's own average ("channel audit" from Section 4.8).
-- `lib/store.ts` now records **SEO score history** (every analysis run in
-  the SEO Analyzer tab is saved, not just the latest one), so trends are
-  visible instead of a single point-in-time number.
-- `app/api/analytics/route.ts` — aggregates all of the above into one
-  response for the dashboard.
-- New **Analytics** tab (4th tab): website SEO score trend (with ▲/▼ vs. the
-  previous check), YouTube channel + video stats with underperforming videos
-  flagged, Facebook page + post stats with underperforming posts flagged.
-
-### Phase 5 additions (new — Advanced Automation)
-
-- `generateTrendIdeas()` in `lib/claude.ts` — uses Claude's server-side
-  `web_search` tool to find genuinely current trends for a niche (not static
-  training knowledge), returns 5 timely content ideas.
-- `generateVariants()` in `lib/claude.ts` — two distinct title options for
-  A/B testing (compare real performance later via the Analytics tab).
-- `generateReport()` in `lib/claude.ts` — turns the Analytics tab's raw data
-  into a short, readable digest.
-- `lib/store.ts` now has a **Content Calendar** (`CalendarItem`): plan a
-  topic + channel + date; a "Run Due Items Now" button processes anything
-  due through the same generation → permission-check → publish pipeline as
-  manual generation (Section 3's permission model applies here too).
-- `app/api/trends`, `app/api/calendar`, `app/api/calendar/run`,
-  `app/api/report` — the new routes backing the above.
-- New **Automation** tab (5th tab): Trend Ideas, Content Calendar (with
-  "Run Due Items Now"), and Performance Report generation.
-
-**Important scope note on "automation":** there is no real background
-scheduler/cron in this dev setup — "Run Due Items Now" is a manual trigger
-that does what a cron job would do automatically in production. Deploying
-this to a host with real cron (e.g., Vercel Cron hitting
-`/api/calendar/run` on a schedule) would make it fully automatic without
-changing the underlying logic.
-
-## Running it locally
-
-1. Install dependencies:
-   ```
-   npm install
-   ```
-2. Copy `.env.local.example` to `.env.local` and add your Claude API key
-   (from console.anthropic.com):
-   ```
-   cp .env.local.example .env.local
-   ```
-3. Start the dev server:
-   ```
-   npm run dev
-   ```
-4. Open http://localhost:3000
-
-## What's intentionally NOT here yet
-
-- Real database: `data/db.json` is a single-file stand-in, fine for one user
-  testing locally, but not safe for multiple simultaneous users.
-- Keyword research, competitor gap analysis, bulk processing, and full
-  channel audit (rest of Section 4.8) have later-version implementations;
-  treat older README phase notes as historical.
-- No image generation yet (Section 4.4).
-- Permission model is one mode (Suggest/Auto) per platform, not the full
-  per-action-category matrix from Section 3.
-- A/B testing (`generateVariants()`) exists but isn't wired to
-  auto-pick a winner from Analytics data yet — comparison is manual.
-- No email delivery for performance reports — generated on-demand only.
-
-## Where to go next
-
-All 5 roadmap phases now have working code (Section 6 of the Master
-Requirements Document marks each as built, with honest scope notes on what's
-simplified). From here, the work is **hardening and depth**, not new
-architecture:
-
-1. Keep production on Supabase Auth + workspace RLS; local JSON is a development fallback.
-2. YouTube connects through in-app Google OAuth with token refresh. Manual token paste is legacy/testing-only (`docs/INTEGRATIONS.md`). Live provider E2E remains environment-specific.
-3. Facebook OAuth exists in-app; Page picker and deeper Insights remain limited.
-4. Add image generation (Section 4.4).
-5. Wire A/B testing to auto-compare via Analytics data.
-
-## V3 Production Foundation
-
-Added `supabase/schema.sql`, Supabase Auth verification helpers, tenant context, durable job/idempotency types, and production migration documentation. See `docs/V3-PRODUCTION-FOUNDATION.md`. The complete original V2 feature set remains in this package.
-
-## V4 Auth & API Foundation
-
-V4 adds production-facing API authentication enforcement and a Supabase-backed workspace management API. Set `AUTOSEO_AUTH_REQUIRED=true` in production. The local JSON store is still intentionally retained until the next phase replaces it with workspace-scoped PostgreSQL repositories. See `docs/V4-AUTH-API-FOUNDATION.md`.
-
-## V5 — Supabase Data Layer
-
-V5 adds workspace-scoped Supabase/Postgres persistence for drafts, SEO score history, publishing connections and calendar items. Configure Supabase and `AUTOSEO_AUTH_REQUIRED=true` to activate the production path; local JSON remains a development fallback. See `docs/V5-SUPABASE-DATA-LAYER.md`.
-
-## V6 — Durable publishing queue
-
-V6 adds a Supabase-backed durable job queue, atomic job claiming, idempotent publish jobs, retry/backoff handling, and a worker endpoint. Apply `supabase/v6-queue.sql` after the main schema and configure `AUTOSEO_WORKER_SECRET`. A scheduler/cron must invoke the worker endpoint in production.
-
-## V8 — SaaS Dashboard & Workspace Control Plane
-
-V8 adds a workspace-aware control plane: workspace selector/creation, workspace-scoped client requests, System dashboard, job monitoring, connection health, audit history, and admin-only team membership APIs. Secret/token fields include Show/Hide controls.
-
-Production auth remains controlled by `AUTOSEO_AUTH_REQUIRED=true`; authenticated API calls use the selected `x-workspace-id`.
-
-See `docs/V8-SAAS-DASHBOARD.md` for deployment and verification steps.
-
-## V10 — Production Security & RBAC
-
-V10 adds canonical owner/admin/editor/viewer authorization, server-side workspace membership checks, cross-origin write protection, security headers, owner-membership database protection, append-only audit policies, and safer internal API forwarding. Apply `supabase/v10-security.sql` after the existing Supabase schema/queue migrations.
-
-## V11 — Database Migration & Data Integrity
-
-V11 hardens the persistence layer with database-level invariants and operational history. Apply `supabase/v11-data-integrity.sql` after the V10 migration. It adds atomic workspace creation, one-owner-per-workspace protection, immutable audit logs, job lifecycle guards, stale-lock recovery, job attempt history, and duplicate active publish-job protection. See `docs/V11-DATA-INTEGRITY.md` for migration and preflight checks.
-
-## V13 Provider Lifecycle
-
-V13 adds OAuth token refresh for Google/YouTube, provider health-state persistence, worker health checks, admin revoke/reconnect lifecycle, and database protection against duplicate active provider connections.
-
-## V14 — SEO Intelligence Engine
-
-V14 adds a bounded multi-page site audit with robots.txt, XML sitemap, canonical, noindex, hreflang, Open Graph, Twitter/X cards, JSON-LD, broken-link, duplicate metadata, image-source and deterministic site-level SEO checks. Use `POST /api/site-audit` with a URL and optional `maxPages` (1–50). The crawler remains protected by the existing SSRF-safe URL fetcher and only follows same-host URLs. See `docs/V14-SEO-INTELLIGENCE.md`.
-
-## V15 — Keyword & Content Intelligence
-
-- Deterministic target-keyword analysis via `/api/keyword-intelligence`.
-- Search-intent signal, title/meta/H1 alignment, heading coverage, URL alignment, content-length and internal-link signals.
-- Prioritized keyword issues and recommendations.
-
-## V17
-
-AI-assisted SEO optimization preview: `/api/optimize-content`. The optimizer uses the existing deterministic content intelligence brief and returns a preview only; publishing remains approval/queue based.
-
-## V18 — Optimization Approval & Versioning
-
-V18 adds human-in-the-loop draft versioning, selective field approval/rejection, immutable version history, and approval-to-durable-publish queue integration. See `docs/V18-OPTIMIZATION-VERSIONING.md` and run `supabase/v18-optimization-versioning.sql`.
-
-## V19 — Rollback & Change Management
-
-V19 adds immutable publication snapshots, human-initiated rollback versions, rollback-to-durable-queue flow, and publication history. Apply `supabase/v19-rollback.sql` after V18. See `docs/V19-ROLLBACK-CHANGE-MANAGEMENT.md`.
+# AIBISORA
+
+**From Web to Social, Your Complete Business Solution.**
+
+Current product status: **Free Beta**
+
+AIBISORA is an AI-powered business growth platform for websites, SEO, content, YouTube, and Facebook. Instagram, WhatsApp, and the in-app Website Builder are on the roadmap and are labeled Coming Soon — they are not live.
+
+This repository is the AIBISORA product. Internal engineering names, environment keys, cookies, SQL files, and worker paths may still say AutoSEO or Nexora. Those are **legacy internal identifiers**, not the current brand.
+
+Billing and paid checkout are **OFF**.
+
+## Capability status
+
+Labels mean what they say. Unfinished work is not marked complete.
+
+### IMPLEMENTED
+
+- Production authentication fail-closed (`NODE_ENV=production` always requires a verified Supabase user)
+- HttpOnly access and refresh cookies, with Bearer still accepted for workers and older clients
+- Workspace tenancy: membership is derived from the verified session plus `x-workspace-id` (the header is never trusted alone)
+- Website SEO crawl, deterministic scoring, AI interpretation
+- Keyword, competitor, technical, local, and internal-linking tools (code present)
+- Content generation, human approval queue, WordPress / Shopify / custom-site publishers
+- YouTube in-app Google OAuth, metadata update on existing videos, analytics reconnect when `yt-analytics.readonly` is missing
+- Facebook in-app Meta OAuth (first Page only), Page publishing, comments, hashtags, competitor stats, audience-insights fallback
+- Automation workflows and calendar run endpoint
+- AI Strategist and AI Operating System as planners (they do not publish on their own)
+- Free Beta entitlement catalog (billing off)
+- Channel-first navigation: Websites, YouTube, Facebook, Instagram (Coming Soon), WhatsApp (Coming Soon)
+
+### PARTIAL
+
+- Facebook Page picker: **FIRST_PAGE_ONLY**
+- Publisher/crawler SSRF: redirect re-validation is in place; DNS-rebinding IP pinning is not
+- Rate limiting: in-process per instance, not distributed
+- RBAC: editor/admin gates exist on many mutation routes; live User A / Workspace B isolation is owner-applied SQL plus code, runtime **NOT VERIFIED** until a configured Supabase project is tested
+- Accessibility: labeled controls and keyboard-focus styles exist; **no WCAG certification**
+
+### COMING SOON
+
+- Instagram
+- WhatsApp
+- Website Builder
+
+### API LIMITATION
+
+- YouTube Community posts: **GENERATION_ONLY** (YouTube has no public Community posting API)
+- New YouTube video upload: metadata update on **existing** videos only
+- Deeper Facebook Insights may require Meta app review
+
+### NOT IMPLEMENTED
+
+- Thumbnail **image** generation (title variants only)
+- Paid checkout, subscriptions as a live payment product, MRR/revenue dashboards
+- Distributed/global rate limiting
+- Autonomous publishing without human approval when the connection is in suggest mode
+
+### NOT VERIFIED
+
+- Live Google OAuth round-trip against a production Google Cloud project
+- Live Meta OAuth round-trip against a production Meta app
+- Live Supabase RLS on a deployed project
+- Live auth E2E against a configured Supabase project
+- Vercel production deploy of this exact snapshot
+- WCAG conformance audit
+
+## Architecture
+
+```
+USER → WORKSPACE → BETA ENTITLEMENTS → USAGE → ROLE → ACTION
+```
+
+Workspace is the tenant boundary. APIs verify the Supabase user, then membership, then role and feature entitlements.
+
+## Authentication
+
+- Production always requires a verified Supabase user.
+- Browser sessions prefer HttpOnly cookies (`nexora_sb_access`, `nexora_sb_refresh` — internal legacy cookie names) set by `/api/auth/session`.
+- Cookies are `Secure` in production, `SameSite=Lax`.
+- Bearer tokens remain accepted for workers, recovery, and older clients.
+- JWT payloads are never trusted locally; the server verifies with Supabase Auth `GET /auth/v1/user`.
+- Local demo without Supabase is **DEVELOPMENT_ONLY**.
+
+## Workspace model
+
+Create or select a workspace after sign-in. Connections, queue, analytics, automation, and usage are workspace-scoped. Members cannot access another workspace through `x-workspace-id` alone.
+
+## SEO, YouTube, Facebook, automation, AI, publishing
+
+See `docs/AIBISORA.md` for the detailed capability notes, including YouTube generation-only Community posts and Facebook first-page OAuth.
+
+## Beta limitations
+
+- Billing OFF. Checkout returns `501` with `BILLING_DISABLED_FOR_BETA`.
+- No fake metrics, sample traffic, or invented subscription state.
+- In-process rate limits only.
+- Vercel cron in `vercel.json` is every minute. That schedule requires **Vercel Pro/Enterprise**, or an external HTTPS scheduler posting to `/api/cron/autoseo` with `CRON_SECRET`. Hobby cannot be assumed to support one-minute cron.
+
+## Required environment variables
+
+Copy `.env.local.example` to `.env.local`. Current production-oriented variables:
+
+- `NEXT_PUBLIC_APP_URL`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `AUTOSEO_ENCRYPTION_KEY` (64 hex chars)
+- `AUTOSEO_APP_SECRET`
+- `AUTOSEO_WORKER_SECRET`
+- `CRON_SECRET`
+- `ANTHROPIC_API_KEY`
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` if YouTube or Search Console is offered
+- `FACEBOOK_CLIENT_ID` / `FACEBOOK_CLIENT_SECRET` if Facebook is offered
+- `FACEBOOK_GRAPH_VERSION=v26.0`
+- `NEXORA_BETA_MODE=true`
+- `NEXORA_BILLING_PROVIDER=none`
+- `NEXORA_PLATFORM_ADMIN_EMAILS` for `/admin`
+
+`AUTOSEO_*` and `NEXORA_*` names are internal legacy keys. Do not rename them in a live environment without a migration plan.
+
+## Local setup
+
+```
+npm ci
+cp .env.local.example .env.local
+npm run dev
+```
+
+Open http://localhost:3000
+
+## Verification commands
+
+```
+npm ci
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
+
+Do not report these as passing unless the commands actually succeed.
+
+## Deployment
+
+1. Apply `supabase/COMBINED-MIGRATION.sql` (includes V46) in the Supabase SQL editor. Do **not** run production SQL from this application.
+2. Set production environment variables on the host.
+3. `NODE_ENV=production` (auth is fail-closed even if `AUTOSEO_AUTH_REQUIRED` is omitted).
+4. HTTPS origin in `NEXT_PUBLIC_APP_URL`.
+5. Register Google and Meta redirect URIs. See `docs/INTEGRATIONS.md`.
+6. Cron: Vercel Pro/Enterprise can keep `* * * * *`, otherwise use an external scheduler.
+
+## Historical documents
+
+Engineering history is preserved separately and is not the current product brand:
+
+- `docs/AUTOSEO-VERSION-HISTORY.md`
+- `docs/NEXORA.md` (historical Nexora Free Beta notes; current doc is `docs/AIBISORA.md`)
+- Versioned `docs/V*.md` files
+- `docs/MASTER-REQUIREMENTS.md` (original requirements)

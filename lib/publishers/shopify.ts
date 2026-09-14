@@ -62,17 +62,17 @@ export async function testShopifyConnection(settings: ShopifySettings): Promise<
       signal: AbortSignal.timeout(10_000),
     });
     if (res.status === 401 || res.status === 403) {
-      return { ok: false, message: "Access token ghalat hai ya scope kaafi nahi hai." };
+      return { ok: false, message: "The access token is invalid or does not have sufficient scope." };
     }
     if (!res.ok) {
-      return { ok: false, message: `Shopify ne connection reject kar di (status ${res.status}).` };
+      return { ok: false, message: `Shopify rejected the connection (status ${res.status}).` };
     }
     const data = await res.json();
     return { ok: true, message: `Connected: "${data.shop?.name}".` };
   } catch {
     return {
       ok: false,
-      message: "Shopify tak nahi pahunch paye. Store domain check karein aur dobara koshish karein.",
+      message: "Could not reach Shopify. Check the store domain and try again.",
     };
   }
 }
@@ -129,7 +129,7 @@ async function setPageMetaDescription(settings: ShopifySettings, pageId: number,
     signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) {
-    throw new Error(`Meta description set nahi ho saki (status ${res.status}).`);
+    throw new Error(`Could not set the meta description (status ${res.status}).`);
   }
 }
 
@@ -150,12 +150,14 @@ export async function applySeoFixesToShopify(
     signal: AbortSignal.timeout(10_000),
   });
   if (!lookupRes.ok) {
-    throw new Error(`Page dhoondne mein masla hua (status ${lookupRes.status}).`);
+    throw new Error(`Could not look up the page (status ${lookupRes.status}).`);
   }
   const data = await lookupRes.json();
   const page = data.pages?.[0];
   if (!page) {
-    throw new Error(`"${handle}" handle wala page nahi mila. Note: sirf Shopify Pages support hain abhi.`);
+    throw new Error(
+      `No page was found with the handle "${handle}". Note: only Shopify Pages are supported at this time.`
+    );
   }
 
   const updateRes = await safeOutboundFetch(apiUrl(settings, `/pages/${page.id}.json`), {

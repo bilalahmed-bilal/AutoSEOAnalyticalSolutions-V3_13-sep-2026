@@ -314,7 +314,7 @@ export function buildStrategyPlan(input: UnknownRecord): StrategyPlan {
   const confidence = Math.round(actions.reduce((s, a) => s + a.confidence, 0) / actions.length);
   return {
     overallPriority: overall,
-    summary: `AutoSEO recommends ${actions.length} prioritized action(s). The plan favors fixing high-risk technical signals before scaling content, then using keyword, competitor, quality and performance evidence to choose the next growth actions.`,
+    summary: `AIBISORA recommends ${actions.length} prioritized action(s). The plan favors fixing high-risk technical signals before scaling content, then using keyword, competitor, quality and performance evidence to choose the next growth actions.`,
     confidence,
     actions,
     signals,

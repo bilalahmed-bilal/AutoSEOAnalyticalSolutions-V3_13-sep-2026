@@ -5,6 +5,11 @@ import Link from "next/link";
 import { apiFetch } from "@/lib/client-api";
 import { productBrand } from "@/lib/product/brand";
 import { errorMessage, type UnknownRecord } from "@/lib/unknown";
+import ThemeToggle from "@/app/theme/ThemeToggle";
+import { Alert } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card, MetricCard } from "@/components/ui/Card";
+import { Input, Select } from "@/components/ui/Field";
 
 type AdminSection = "overview" | "users" | "workspaces" | "features" | "usage" | "connections" | "audit" | "settings";
 
@@ -58,13 +63,20 @@ export default function AdminConsolePage() {
     });
   }, []);
 
-  if (allowed === null) return <main className="p-8 text-sm">Checking admin access…</main>;
+  if (allowed === null)
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-bg p-8 text-sm text-muted">
+        Checking admin access…
+      </main>
+    );
   if (!allowed) {
     return (
-      <main className="mx-auto max-w-lg p-8">
-        <h1 className="font-head text-2xl">Access denied</h1>
-        <p className="mt-2 text-sm text-ink/70">This Nexora Admin Console is limited to platform administrators.</p>
-        <Link href="/" className="mt-4 inline-block underline">
+      <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center p-8 text-center">
+        <h1 className="nx-page-title">Access denied</h1>
+        <p className="mt-2 text-sm text-[var(--nx-text-secondary)]">
+          This AIBISORA Admin Console is limited to platform administrators.
+        </p>
+        <Link href="/" className="mt-4 text-sm text-primary underline-offset-2 hover:underline">
           Back to {productBrand.productName}
         </Link>
       </main>
@@ -114,241 +126,270 @@ export default function AdminConsolePage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 px-4 py-8">
-      <header>
-        <p className="text-xs uppercase tracking-[.2em] text-signal">{productBrand.productName} Admin</p>
-        <h1 className="font-head mt-2 text-3xl">Operational control plane</h1>
-        <p className="mt-2 text-sm text-ink/60">
-          Free Beta: billing is OFF. Real database values only. Tokens are never shown.
-        </p>
-        <Link href="/" className="mt-3 inline-block min-h-11 text-sm underline">
-          Back to app
-        </Link>
-      </header>
-      <nav className="flex flex-wrap gap-2" aria-label="Admin sections">
-        {SECTIONS.map((item) => (
-          <button
-            key={item.id}
-            className={`min-h-11 border px-3 py-2 text-sm ${section === item.id ? "bg-ink text-paper" : "bg-white"}`}
-            onClick={() => setSection(item.id)}
-          >
-            {item.label}
-          </button>
-        ))}
-      </nav>
-      {error && (
-        <p className="border border-red-300 bg-red-50 p-3 text-sm text-red-700" role="alert">
-          {error}
-        </p>
-      )}
-      {message && <p className="text-sm">{message}</p>}
-
-      {section === "overview" && (
-        <section className="grid gap-3 sm:grid-cols-3">
-          {overview &&
-            [
-              ["Workspaces", overview.workspaces],
-              ["Trials", overview.trialWorkspaces],
-              ["Paid", overview.paidWorkspaces],
-              ["Failed jobs", overview.failedJobs],
-              ["Connections", overview.connectedAccounts],
-              ["Suspended", overview.suspendedWorkspaces],
-            ].map(([label, value]) => (
-              <div key={String(label)} className="border border-line p-4">
-                <p className="text-xs uppercase text-ink/50">{String(label)}</p>
-                <p className="font-head text-2xl">{String(value ?? 0)}</p>
-              </div>
+    <main className="min-h-screen bg-bg" data-app>
+      <div className="flex min-h-screen">
+        <aside className="hidden w-56 shrink-0 border-r border-line bg-surface p-4 md:block">
+          <p className="nx-label">Admin</p>
+          <p className="mt-1 text-sm font-semibold">{productBrand.productName}</p>
+          <nav className="mt-6 space-y-1" aria-label="Admin sections">
+            {SECTIONS.map((item) => (
+              <button
+                key={item.id}
+                className={`focus-ring flex min-h-10 w-full items-center rounded-[10px] px-3 text-left text-sm ${
+                  section === item.id
+                    ? "bg-[color-mix(in_srgb,var(--nx-primary)_12%,transparent)] text-ink"
+                    : "text-[var(--nx-text-secondary)] hover:text-ink"
+                }`}
+                onClick={() => setSection(item.id)}
+              >
+                {item.label}
+              </button>
             ))}
-        </section>
-      )}
-
-      {section === "features" && (
-        <section className="border border-line p-4">
-          <h2 className="font-head text-lg">Assign plan / entitlement</h2>
-          <p className="mt-1 text-sm text-ink/60">
-            During Free Beta, feature access follows the beta catalog. Overrides and suspension still apply.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <input
-              className="min-h-11 border px-2 py-1"
-              placeholder="Workspace UUID"
-              value={workspaceId}
-              onChange={(e) => setWorkspaceId(e.target.value)}
-              aria-label="Workspace UUID"
-            />
-            <select
-              className="min-h-11 border px-2 py-1"
-              value={planSlug}
-              onChange={(e) => setPlanSlug(e.target.value)}
-              aria-label="Plan"
-            >
-              {["free", "starter", "pro", "pro-plus", "business", "custom"].map((slug) => (
-                <option key={slug}>{slug}</option>
+          </nav>
+        </aside>
+        <div className="min-w-0 flex-1">
+          <header className="flex min-h-[var(--nx-header)] items-center justify-between gap-3 border-b border-line px-4 sm:px-6">
+            <div>
+              <p className="nx-label">Control plane</p>
+              <h1 className="text-sm font-semibold">Free Beta · billing OFF · tokens never shown</h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <Link href="/" className="text-sm text-primary underline-offset-2 hover:underline">
+                Back to app
+              </Link>
+            </div>
+          </header>
+          <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6">
+            <nav className="flex flex-wrap gap-2 md:hidden" aria-label="Admin sections">
+              {SECTIONS.map((item) => (
+                <Button
+                  key={item.id}
+                  size="sm"
+                  variant={section === item.id ? "primary" : "secondary"}
+                  onClick={() => setSection(item.id)}
+                >
+                  {item.label}
+                </Button>
               ))}
-            </select>
-            <button className="min-h-11 border px-3 py-1" onClick={assignPlan}>
-              Assign plan
-            </button>
-            <input
-              className="min-h-11 border px-2 py-1"
-              value={featureKey}
-              onChange={(e) => setFeatureKey(e.target.value)}
-              aria-label="Feature key"
-            />
-            <button className="min-h-11 border px-3 py-1" onClick={grantFeature}>
-              Grant feature
-            </button>
+            </nav>
+            {error && <Alert>{error}</Alert>}
+            {message && <Alert tone="success">{message}</Alert>}
+
+            {section === "overview" && (
+              <section className="grid gap-3 sm:grid-cols-3">
+                {overview &&
+                  [
+                    ["Workspaces", overview.workspaces],
+                    ["Trials", overview.trialWorkspaces],
+                    ["Paid", overview.paidWorkspaces],
+                    ["Failed jobs", overview.failedJobs],
+                    ["Connections", overview.connectedAccounts],
+                    ["Suspended", overview.suspendedWorkspaces],
+                  ].map(([label, value]) => (
+                    <MetricCard key={String(label)} label={String(label)} value={value ?? 0} />
+                  ))}
+              </section>
+            )}
+
+            {section === "features" && (
+              <Card>
+                <h2 className="nx-section-title">Assign plan / entitlement</h2>
+                <p className="mt-1 text-sm text-[var(--nx-text-secondary)]">
+                  During Free Beta, feature access follows the beta catalog. Overrides and suspension still apply.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Input
+                    className="min-h-11 w-56"
+                    placeholder="Workspace UUID"
+                    value={workspaceId}
+                    onChange={(e) => setWorkspaceId(e.target.value)}
+                    aria-label="Workspace UUID"
+                  />
+                  <Select
+                    className="min-h-11 w-40"
+                    value={planSlug}
+                    onChange={(e) => setPlanSlug(e.target.value)}
+                    aria-label="Plan"
+                  >
+                    {["free", "starter", "pro", "pro-plus", "business", "custom"].map((slug) => (
+                      <option key={slug}>{slug}</option>
+                    ))}
+                  </Select>
+                  <Button onClick={assignPlan}>Assign plan</Button>
+                  <Input
+                    className="min-h-11 w-52"
+                    value={featureKey}
+                    onChange={(e) => setFeatureKey(e.target.value)}
+                    aria-label="Feature key"
+                  />
+                  <Button onClick={grantFeature}>Grant feature</Button>
+                </div>
+              </Card>
+            )}
+
+            {section === "workspaces" && (
+              <section className="border border-line p-4">
+                <h2 className="font-head text-lg">Workspaces</h2>
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full min-w-[700px] text-left text-sm">
+                    <thead>
+                      <tr className="text-xs uppercase text-ink/50">
+                        <th className="py-2">Name</th>
+                        <th>Status</th>
+                        <th>ID</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {workspaces.map((row) => (
+                        <tr key={String(row.id)} className="border-t">
+                          <td className="py-2">{String(row.name)}</td>
+                          <td>{String(row.status || "active")}</td>
+                          <td className="font-mono text-xs">{String(row.id)}</td>
+                          <td>
+                            <button
+                              className="mr-2 min-h-11 underline"
+                              onClick={() =>
+                                suspend(String(row.id), row.status === "suspended" ? "restore" : "suspend")
+                              }
+                            >
+                              {row.status === "suspended" ? "Restore" : "Suspend"}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
+
+            {section === "users" && (
+              <section className="border border-line p-4">
+                <h2 className="font-head text-lg">Users</h2>
+                <p className="mt-1 text-sm text-ink/60">
+                  Membership records only. Auth emails are not listed unless stored on platform_admins.
+                </p>
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full min-w-[640px] text-left text-sm">
+                    <thead>
+                      <tr className="text-xs uppercase text-ink/50">
+                        <th className="py-2">User ID</th>
+                        <th>Role</th>
+                        <th>Workspace</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.map((row, index) => (
+                        <tr key={`${row.user_id}-${row.workspace_id}-${index}`} className="border-t">
+                          <td className="py-2 font-mono text-xs">{String(row.user_id)}</td>
+                          <td>{String(row.role)}</td>
+                          <td className="font-mono text-xs">{String(row.workspace_id)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
+
+            {section === "usage" && (
+              <section className="border border-line p-4">
+                <h2 className="font-head text-lg">Usage</h2>
+                {!usage.length && <p className="mt-2 text-sm text-ink/50">No usage counters yet.</p>}
+                <ul className="mt-3 space-y-2 text-sm">
+                  {usage.map((row, index) => (
+                    <li key={`${row.workspace_id}-${row.metric}-${index}`} className="border p-2">
+                      {String(row.workspace_id)} · {String(row.metric)} · {String(row.quantity)} / {String(row.period)}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {section === "connections" && (
+              <section className="border border-line p-4">
+                <h2 className="font-head text-lg">Connections</h2>
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full min-w-[700px] text-left text-sm">
+                    <thead>
+                      <tr className="text-xs uppercase text-ink/50">
+                        <th className="py-2">Provider</th>
+                        <th>Status</th>
+                        <th>Workspace</th>
+                        <th>Created</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {connections.map((row) => (
+                        <tr key={String(row.id)} className="border-t">
+                          <td className="py-2">{String(row.provider)}</td>
+                          <td>{String(row.status)}</td>
+                          <td className="font-mono text-xs">{String(row.workspaceId)}</td>
+                          <td>{row.createdAt ? new Date(String(row.createdAt)).toLocaleString() : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
+
+            {section === "audit" && (
+              <section className="border border-line p-4">
+                <h2 className="font-head text-lg">Audit logs</h2>
+                <ul className="mt-3 space-y-2 text-sm">
+                  {logs.map((row) => (
+                    <li key={String(row.id)} className="border p-2">
+                      {String(row.created_at)} · {String(row.action)} · {String(row.entity_type || "")}
+                    </li>
+                  ))}
+                  {!logs.length && <li className="text-ink/50">No audit events yet.</li>}
+                </ul>
+              </section>
+            )}
+
+            {section === "settings" && (
+              <section className="border border-line p-4">
+                <h2 className="font-head text-lg">System settings</h2>
+                {settings ? (
+                  <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                    <div className="border p-3">
+                      <dt className="text-xs uppercase text-ink/50">Beta</dt>
+                      <dd>{String(settings.beta)}</dd>
+                    </div>
+                    <div className="border p-3">
+                      <dt className="text-xs uppercase text-ink/50">Billing</dt>
+                      <dd>{String(settings.billing)}</dd>
+                    </div>
+                    <div className="border p-3">
+                      <dt className="text-xs uppercase text-ink/50">Rate limit</dt>
+                      <dd>{String(settings.rateLimitBackend)}</dd>
+                    </div>
+                    <div className="border p-3">
+                      <dt className="text-xs uppercase text-ink/50">Facebook pages</dt>
+                      <dd>{String(settings.facebookPageSelection)}</dd>
+                    </div>
+                    <div className="border p-3">
+                      <dt className="text-xs uppercase text-ink/50">Default language</dt>
+                      <dd>{String(settings.languages?.default || "en")}</dd>
+                    </div>
+                    <div className="border p-3">
+                      <dt className="text-xs uppercase text-ink/50">Enabled languages</dt>
+                      <dd>
+                        {Array.isArray(settings.languages?.enabled) ? settings.languages.enabled.join(", ") : "en"}
+                      </dd>
+                    </div>
+                  </dl>
+                ) : (
+                  <p className="mt-2 text-sm text-ink/50">Settings unavailable.</p>
+                )}
+              </section>
+            )}
           </div>
-        </section>
-      )}
-
-      {section === "workspaces" && (
-        <section className="border border-line p-4">
-          <h2 className="font-head text-lg">Workspaces</h2>
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[700px] text-left text-sm">
-              <thead>
-                <tr className="text-xs uppercase text-ink/50">
-                  <th className="py-2">Name</th>
-                  <th>Status</th>
-                  <th>ID</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {workspaces.map((row) => (
-                  <tr key={String(row.id)} className="border-t">
-                    <td className="py-2">{String(row.name)}</td>
-                    <td>{String(row.status || "active")}</td>
-                    <td className="font-mono text-xs">{String(row.id)}</td>
-                    <td>
-                      <button
-                        className="mr-2 min-h-11 underline"
-                        onClick={() => suspend(String(row.id), row.status === "suspended" ? "restore" : "suspend")}
-                      >
-                        {row.status === "suspended" ? "Restore" : "Suspend"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {section === "users" && (
-        <section className="border border-line p-4">
-          <h2 className="font-head text-lg">Users</h2>
-          <p className="mt-1 text-sm text-ink/60">
-            Membership records only. Auth emails are not listed unless stored on platform_admins.
-          </p>
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead>
-                <tr className="text-xs uppercase text-ink/50">
-                  <th className="py-2">User ID</th>
-                  <th>Role</th>
-                  <th>Workspace</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((row, index) => (
-                  <tr key={`${row.user_id}-${row.workspace_id}-${index}`} className="border-t">
-                    <td className="py-2 font-mono text-xs">{String(row.user_id)}</td>
-                    <td>{String(row.role)}</td>
-                    <td className="font-mono text-xs">{String(row.workspace_id)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {section === "usage" && (
-        <section className="border border-line p-4">
-          <h2 className="font-head text-lg">Usage</h2>
-          {!usage.length && <p className="mt-2 text-sm text-ink/50">No usage counters yet.</p>}
-          <ul className="mt-3 space-y-2 text-sm">
-            {usage.map((row, index) => (
-              <li key={`${row.workspace_id}-${row.metric}-${index}`} className="border p-2">
-                {String(row.workspace_id)} · {String(row.metric)} · {String(row.quantity)} / {String(row.period)}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {section === "connections" && (
-        <section className="border border-line p-4">
-          <h2 className="font-head text-lg">Connections</h2>
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[700px] text-left text-sm">
-              <thead>
-                <tr className="text-xs uppercase text-ink/50">
-                  <th className="py-2">Provider</th>
-                  <th>Status</th>
-                  <th>Workspace</th>
-                  <th>Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {connections.map((row) => (
-                  <tr key={String(row.id)} className="border-t">
-                    <td className="py-2">{String(row.provider)}</td>
-                    <td>{String(row.status)}</td>
-                    <td className="font-mono text-xs">{String(row.workspaceId)}</td>
-                    <td>{row.createdAt ? new Date(String(row.createdAt)).toLocaleString() : "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {section === "audit" && (
-        <section className="border border-line p-4">
-          <h2 className="font-head text-lg">Audit logs</h2>
-          <ul className="mt-3 space-y-2 text-sm">
-            {logs.map((row) => (
-              <li key={String(row.id)} className="border p-2">
-                {String(row.created_at)} · {String(row.action)} · {String(row.entity_type || "")}
-              </li>
-            ))}
-            {!logs.length && <li className="text-ink/50">No audit events yet.</li>}
-          </ul>
-        </section>
-      )}
-
-      {section === "settings" && (
-        <section className="border border-line p-4">
-          <h2 className="font-head text-lg">System settings</h2>
-          {settings ? (
-            <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-              <div className="border p-3">
-                <dt className="text-xs uppercase text-ink/50">Beta</dt>
-                <dd>{String(settings.beta)}</dd>
-              </div>
-              <div className="border p-3">
-                <dt className="text-xs uppercase text-ink/50">Billing</dt>
-                <dd>{String(settings.billing)}</dd>
-              </div>
-              <div className="border p-3">
-                <dt className="text-xs uppercase text-ink/50">Rate limit</dt>
-                <dd>{String(settings.rateLimitBackend)}</dd>
-              </div>
-              <div className="border p-3">
-                <dt className="text-xs uppercase text-ink/50">Facebook pages</dt>
-                <dd>{String(settings.facebookPageSelection)}</dd>
-              </div>
-            </dl>
-          ) : (
-            <p className="mt-2 text-sm text-ink/50">Settings unavailable.</p>
-          )}
-        </section>
-      )}
+        </div>
+      </div>
     </main>
   );
 }

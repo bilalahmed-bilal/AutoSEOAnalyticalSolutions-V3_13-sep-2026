@@ -13,13 +13,15 @@ test("production auth policy is wired into requireApiAccess", () => {
   assert.doesNotMatch(source, /const authRequired = process\.env\.AUTOSEO_AUTH_REQUIRED === "true"/);
 });
 
-test("Nexora branding is centralized and used in customer-facing metadata", () => {
+test("AIBISORA branding is centralized and used in customer-facing metadata", () => {
   const brand = read("lib/product/brand.ts");
   const layout = read("app/layout.tsx");
   const page = read("app/page.tsx");
-  assert.match(brand, /productName: "Nexora"/);
+  assert.match(brand, /productName: "AIBISORA"/);
+  assert.match(brand, /From Web to Social, Your Complete Business Solution\./);
   assert.match(layout, /productBrand/);
   assert.match(page, /productBrand\.productName/);
+  assert.doesNotMatch(read("app/layout.tsx"), /Nexora/);
 });
 
 test("entitlement catalog includes required feature keys and does not grant bulk on Free", () => {

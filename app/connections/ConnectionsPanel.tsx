@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/client-api";
 import { errorMessage, scheduleMount, type UnknownRecord } from "@/lib/unknown";
+import { Alert, ApprovalBadge, EmptyState } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card, PageHeader } from "@/components/ui/Card";
 
 export default function ConnectionsPanel() {
   const [rows, setRows] = useState<UnknownRecord[]>([]);
@@ -43,50 +46,65 @@ export default function ConnectionsPanel() {
   }
 
   return (
-    <section className="border border-line bg-white p-6">
-      <h2 className="font-head text-lg font-semibold">Connections</h2>
-      <p className="mt-1 text-sm text-ink/60">
-        Tokens are never shown. Facebook connects the first Page only (FIRST_PAGE_ONLY). Use Publish to connect, then
-        reconnect or revoke from here.
-      </p>
-      {error && <p className="mt-3 border border-red-300 bg-red-50 p-2 text-sm text-red-700">{error}</p>}
-      {message && <p className="mt-3 text-sm text-ink/70">{message}</p>}
-      {rows.length ? (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-line text-xs uppercase text-ink/50">
-                <th className="py-2">Provider</th>
-                <th>Status</th>
-                <th>Last check</th>
-                <th>Last error</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={String(row.id)} className="border-b border-line/70">
-                  <td className="py-3">{String(row.provider)}</td>
-                  <td>{String(row.status)}</td>
-                  <td>{row.lastCheckedAt ? new Date(String(row.lastCheckedAt)).toLocaleString() : "—"}</td>
-                  <td className="max-w-[16rem] truncate">{row.lastError ? String(row.lastError) : "—"}</td>
-                  <td>
-                    <button
-                      className="border border-ink px-2 py-1 text-xs disabled:opacity-50"
-                      disabled={busy === row.id || row.status === "revoked"}
-                      onClick={() => revoke(String(row.id))}
-                    >
-                      {busy === row.id ? "…" : "Revoke"}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="mt-4 text-sm text-ink/50">No connections in this workspace.</p>
+    <div>
+      <PageHeader
+        title="Connections"
+        description="Tokens are never shown. Facebook connects the first Page only (FIRST_PAGE_ONLY). Use Publishing to connect, then reconnect or revoke from here."
+      />
+      {error && <Alert className="mb-4">{error}</Alert>}
+      {message && (
+        <Alert tone="success" className="mb-4">
+          {message}
+        </Alert>
       )}
-    </section>
+      {rows.length ? (
+        <Card className="overflow-hidden p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-line">
+                  <th className="px-4 py-3">Provider</th>
+                  <th>Status</th>
+                  <th>Last check</th>
+                  <th>Last error</th>
+                  <th className="px-4"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={String(row.id)} className="border-b border-line last:border-0">
+                    <td className="px-4 py-3 capitalize">{String(row.provider).replace(/-/g, " ")}</td>
+                    <td>
+                      <ApprovalBadge status={String(row.status)} />
+                    </td>
+                    <td className="text-[var(--nx-text-secondary)]">
+                      {row.lastCheckedAt ? new Date(String(row.lastCheckedAt)).toLocaleString() : "—"}
+                    </td>
+                    <td className="max-w-[16rem] truncate text-[var(--nx-text-secondary)]">
+                      {row.lastError ? String(row.lastError) : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={busy === row.id || row.status === "revoked"}
+                        onClick={() => revoke(String(row.id))}
+                      >
+                        {busy === row.id ? "…" : "Disconnect"}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      ) : (
+        <EmptyState
+          title="No connections in this workspace"
+          description="Connect Search Console, YouTube, or Facebook from Publishing. AIBISORA will show account identity and status here without exposing secrets."
+        />
+      )}
+    </div>
   );
 }

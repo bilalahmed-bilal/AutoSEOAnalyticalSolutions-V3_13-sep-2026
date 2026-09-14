@@ -16,6 +16,8 @@ const LIMITS: Record<string, LimitConfig> = {
   "content-intelligence": { windowMs: 60_000, limit: 20 },
   "keyword-intelligence": { windowMs: 60_000, limit: 20 },
   "ai-generate": { windowMs: 60_000, limit: 20 },
+  publish: { windowMs: 60_000, limit: 20 },
+  "auth-password": { windowMs: 60_000, limit: 8 },
   admin: { windowMs: 60_000, limit: 40 },
   "workspaces-list": { windowMs: 60_000, limit: 60 },
   "workspace-create": { windowMs: 60_000, limit: 10 },

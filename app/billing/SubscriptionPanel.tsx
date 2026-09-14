@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/client-api";
 import { errorMessage, scheduleMount, type UnknownRecord } from "@/lib/unknown";
+import { Alert, Badge, EmptyState } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card, MetricCard, PageHeader } from "@/components/ui/Card";
 
 export default function SubscriptionPanel() {
   const [subscription, setSubscription] = useState<UnknownRecord | null>(null);
@@ -39,56 +42,79 @@ export default function SubscriptionPanel() {
   }
 
   return (
-    <div className="space-y-4">
-      <section className="border border-line bg-white p-6">
-        <h2 className="font-head text-lg font-semibold">Subscription</h2>
-        <p className="mt-1 text-sm text-ink/60">Nexora Free Beta — billing and paid checkout are OFF.</p>
-        {error && <p className="mt-3 border border-red-300 bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+    <div className="space-y-6">
+      <PageHeader
+        title="Subscription & usage"
+        description="AIBISORA Free Beta — billing and paid checkout are OFF. Feature access comes from the beta entitlement catalog."
+        actions={<Badge tone="warning">Payments off</Badge>}
+      />
+      {error && <Alert>{error}</Alert>}
+      <Card>
         {subscription ? (
-          <div className="mt-3 text-sm">
-            <p>
-              Plan: <strong>{String(subscription.name)}</strong> ({String(subscription.status)})
-            </p>
-            {subscription.trialEndsAt ? (
-              <p className="mt-1">Trial ends: {new Date(String(subscription.trialEndsAt)).toLocaleString()}</p>
-            ) : null}
-            {subscription.catalogOnly ? (
-              <p className="mt-2 text-ink/60">
-                Catalog-only mode: apply `supabase/v46-nexora-saas.sql` to persist subscriptions.
-              </p>
-            ) : null}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <MetricCard label="Plan" value={String(subscription.name)} hint={String(subscription.status)} />
+            <MetricCard
+              label="Trial"
+              value={
+                subscription.trialEndsAt
+                  ? new Date(String(subscription.trialEndsAt)).toLocaleDateString()
+                  : "Not scheduled"
+              }
+            />
+            <MetricCard
+              label="Billing"
+              value={subscription.beta ? "Free Beta" : String(subscription.billing || "OFF")}
+            />
           </div>
         ) : (
-          <p className="mt-2 text-sm text-ink/50">No subscription loaded.</p>
+          <p className="text-sm text-muted">No subscription loaded.</p>
         )}
+        {subscription?.catalogOnly ? (
+          <p className="mt-4 text-sm text-[var(--nx-text-secondary)]">
+            Catalog-only mode: apply `supabase/v46-nexora-saas.sql` to persist subscriptions.
+          </p>
+        ) : null}
         {subscription?.billing && subscription.billing !== "OFF" && !subscription.beta ? (
-          <button onClick={checkout} className="mt-4 border-2 border-ink bg-signal px-4 py-2 text-sm">
+          <Button variant="primary" className="mt-4" onClick={checkout}>
             Upgrade via billing provider
-          </button>
+          </Button>
         ) : (
-          <p className="mt-4 border border-line bg-paper p-3 text-sm">
-            Payments are disabled for this beta. Feature access comes from the Free Beta entitlement catalog.
+          <p className="mt-4 rounded-[var(--nx-radius-sm)] border border-line bg-elevated p-3 text-sm text-[var(--nx-text-secondary)]">
+            Payments are disabled for this beta. No fake payment success or invented subscription is shown.
           </p>
         )}
-        {checkoutMessage && <p className="mt-2 text-sm text-ink/60">{checkoutMessage}</p>}
-      </section>
-      <section className="border border-line bg-white/70 p-6">
-        <h3 className="font-head text-lg font-semibold">Usage</h3>
+        {checkoutMessage && <p className="mt-2 text-sm text-muted">{checkoutMessage}</p>}
+      </Card>
+      <Card>
+        <h3 className="nx-card-title text-ink">Usage</h3>
         {usage.length ? (
           <ul className="mt-3 space-y-2 text-sm">
-            {usage.map((row) => (
-              <li key={String(row.metric)} className="flex justify-between border border-line p-3">
-                <span>{String(row.metric)}</span>
-                <span>
-                  {Number(row.used || 0)} / {Number(row.limit || 0)}
-                </span>
-              </li>
-            ))}
+            {usage.map((row) => {
+              const used = Number(row.used || 0);
+              const limit = Number(row.limit || 0);
+              const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+              return (
+                <li key={String(row.metric)} className="rounded-[10px] border border-line p-3">
+                  <div className="flex justify-between gap-3">
+                    <span>{String(row.metric)}</span>
+                    <span className="text-[var(--nx-text-secondary)]">
+                      {used} / {limit}
+                    </span>
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--nx-text)_8%,transparent)]">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         ) : (
-          <p className="mt-2 text-sm text-ink/50">No usage recorded this period.</p>
+          <EmptyState
+            title="No usage recorded this period"
+            description="Usage appears after AI, SEO, or publishing work runs in this workspace."
+          />
         )}
-      </section>
+      </Card>
     </div>
   );
 }

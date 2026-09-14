@@ -97,24 +97,20 @@ export async function buildAdvancedAnalytics(
   const negative = delta && delta.clicks < 0 ? 1 : 0;
   const recommendations: string[] = [];
   if (delta && delta.clicks < 0)
-    recommendations.push(
-      "Organic clicks period-over-period down hain; top pages aur affected queries ko review karein."
-    );
+    recommendations.push("Organic clicks are down period over period; review the top pages and affected queries.");
   if (delta && delta.impressions < 0)
-    recommendations.push(
-      "Search impressions down hain; keyword coverage aur indexation/technical signals review karein."
-    );
+    recommendations.push("Search impressions are down; review keyword coverage and indexation or technical signals.");
   if (delta && delta.averagePosition != null && delta.averagePosition > 0)
     recommendations.push(
-      "Average position numerically worse hui hai; priority queries ke on-page aur internal-link signals check karein."
+      "Average position has worsened numerically; check on-page and internal-link signals for priority queries."
     );
   if (currentAvg != null && previousAvg != null && currentAvg < previousAvg)
     recommendations.push(
-      "SEO score improve hua hai; jis content ne change drive kiya usay Search Console performance ke sath correlate karein."
+      "SEO score has improved; correlate the content that drove the change with Search Console performance."
     );
   if (!recommendations.length)
     recommendations.push(
-      "Current period mein koi major regression signal nahi mila; winning pages aur queries ko continue monitor karein."
+      "No major regression signal was found in the current period; continue monitoring winning pages and queries."
     );
   return {
     periodStart: dateOnly(start),

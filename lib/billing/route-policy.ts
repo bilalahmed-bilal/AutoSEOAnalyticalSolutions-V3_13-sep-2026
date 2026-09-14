@@ -14,6 +14,7 @@ export function featureGateForPath(pathname: string, method = "GET"): RouteGate 
 
   if (
     path.startsWith("/api/auth") ||
+    path.startsWith("/api/preferences") ||
     path.startsWith("/api/admin") ||
     path.startsWith("/api/worker") ||
     path.startsWith("/api/cron") ||

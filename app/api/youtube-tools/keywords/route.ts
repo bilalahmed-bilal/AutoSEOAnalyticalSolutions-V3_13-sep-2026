@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     if (!niche || !niche.trim()) {
       return NextResponse.json({ error: "Channel niche is required." }, { status: 400 });
     }
-    const keywords = await generateYouTubeKeywords(niche.trim(), language || "ur");
+    const keywords = await generateYouTubeKeywords(niche.trim(), language || "en");
     await entitled.consume();
     return NextResponse.json({ keywords });
   } catch (err) {

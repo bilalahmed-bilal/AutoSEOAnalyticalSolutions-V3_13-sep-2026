@@ -1,8 +1,9 @@
 /**
- * Nexora Free Beta launch mode.
+ * AIBISORA Free Beta launch mode.
  *
  * Billing and paid checkout stay off until a payment provider is configured
  * and NEXORA_BETA_MODE is explicitly set to "false".
+ * NEXORA_BETA_MODE is an internal legacy environment key.
  */
 type BetaEnv = {
   NEXORA_BETA_MODE?: string;

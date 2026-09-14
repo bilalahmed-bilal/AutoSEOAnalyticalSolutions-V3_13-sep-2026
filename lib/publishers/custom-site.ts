@@ -44,19 +44,19 @@ export async function testCustomSiteConnection(
   try {
     const res = await callReceiver(settings, { ping: true });
     if (res.status === 401 || res.status === 403) {
-      return { ok: false, message: "API key ghalat hai — receiver ne reject kar diya." };
+      return { ok: false, message: "The API key is invalid — the receiver rejected the request." };
     }
     if (!res.ok) {
       return {
         ok: false,
-        message: `Receiver endpoint ne error diya (status ${res.status}). Endpoint code check karein.`,
+        message: `The receiver endpoint returned an error (status ${res.status}). Check the endpoint code.`,
       };
     }
-    return { ok: true, message: "Connection theek hai." };
+    return { ok: true, message: "Connection successful." };
   } catch {
     return {
       ok: false,
-      message: "Webhook URL tak nahi pahunch paye. URL check karein aur dobara koshish karein.",
+      message: "Could not reach the webhook URL. Check the URL and try again.",
     };
   }
 }
@@ -101,11 +101,11 @@ export async function applySeoFixesToCustomSite(
 
   if (res.status === 501) {
     throw new Error(
-      "Is site ke receiver endpoint ne 'update_seo_fields' action implement nahi kiya — sirf create_content support hoti hai abhi."
+      "This site's receiver endpoint has not implemented the 'update_seo_fields' action — only create_content is supported at this time."
     );
   }
   if (!res.ok) {
-    throw new Error(`SEO fix apply nahi ho saka (status ${res.status}).`);
+    throw new Error(`Could not apply the SEO fix (status ${res.status}).`);
   }
 
   const data = await res.json().catch(() => ({}));

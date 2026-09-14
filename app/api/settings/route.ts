@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       if (platformType === "wordpress") {
         if (!siteUrl || !username || !applicationPassword) {
           return NextResponse.json(
-            { error: "Site URL, username, aur application password sab zaroori hain." },
+            { error: "Site URL, username, and application password are required." },
             { status: 400 }
           );
         }
@@ -87,10 +87,7 @@ export async function POST(req: NextRequest) {
 
       if (platformType === "shopify") {
         if (!shopDomain || !shopifyToken) {
-          return NextResponse.json(
-            { error: "Store domain aur Admin API access token dono zaroori hain." },
-            { status: 400 }
-          );
+          return NextResponse.json({ error: "Store domain and Admin API access token are required." }, { status: 400 });
         }
         const shopify = { shopDomain, accessToken: shopifyToken };
         const test = await testShopifyConnection(shopify);
@@ -104,7 +101,7 @@ export async function POST(req: NextRequest) {
 
       if (platformType === "custom") {
         if (!webhookUrl || !apiKey) {
-          return NextResponse.json({ error: "Webhook URL aur API key dono zaroori hain." }, { status: 400 });
+          return NextResponse.json({ error: "Webhook URL and API key are required." }, { status: 400 });
         }
         const custom = { webhookUrl, apiKey };
         const test = await testCustomSiteConnection(custom);
@@ -122,7 +119,7 @@ export async function POST(req: NextRequest) {
     if (platform === "youtube") {
       const { accessToken } = body;
       if (!accessToken) {
-        return NextResponse.json({ error: "Access token zaroori hai." }, { status: 400 });
+        return NextResponse.json({ error: "Access token is required." }, { status: 400 });
       }
       const settings = { accessToken };
       const test = await testYouTubeConnection(settings);
@@ -137,7 +134,7 @@ export async function POST(req: NextRequest) {
     if (platform === "facebook") {
       const { pageId, pageAccessToken } = body;
       if (!pageId || !pageAccessToken) {
-        return NextResponse.json({ error: "Page ID aur Page Access Token dono zaroori hain." }, { status: 400 });
+        return NextResponse.json({ error: "Page ID and Page Access Token are required." }, { status: 400 });
       }
       const settings = { pageId, pageAccessToken };
       const test = await testFacebookConnection(settings);
@@ -152,6 +149,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Platform batayein." }, { status: 400 });
   } catch (err) {
     console.error("settings save error:", err);
-    return NextResponse.json({ error: "Settings save nahi ho sakein." }, { status: 500 });
+    return NextResponse.json({ error: "Settings could not be saved." }, { status: 500 });
   }
 }

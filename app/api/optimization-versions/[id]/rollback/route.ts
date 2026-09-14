@@ -16,9 +16,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const version = await getDraftVersionRemote({ req, workspaceId: permission.tenant.workspaceId }, id);
   if (!version) return NextResponse.json({ error: "Version not found." }, { status: 404 });
   if (version.status === "proposed")
-    return NextResponse.json({ error: "Proposed version ko rollback nahi kiya ja sakta." }, { status: 409 });
+    return NextResponse.json({ error: "A proposed version cannot be rolled back." }, { status: 409 });
   if (version.source === "original")
-    return NextResponse.json({ error: "Original version rollback target nahi hai." }, { status: 409 });
+    return NextResponse.json({ error: "The original version is not a rollback target." }, { status: 409 });
 
   const snapshot = normalizeSnapshot(version.original);
   const body = (await req.json().catch(() => ({}))) as { reason?: string };

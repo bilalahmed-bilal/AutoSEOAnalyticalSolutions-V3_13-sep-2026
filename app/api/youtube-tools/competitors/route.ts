@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ channels: results });
   } catch (err) {
     console.error("competitor list error:", err);
-    return NextResponse.json({ error: "Competitor list load nahi ho saka." }, { status: 500 });
+    return NextResponse.json({ error: "The competitor list could not be loaded." }, { status: 500 });
   }
 }
 
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   try {
     const { channelIdOrHandle } = (await req.json()) as { channelIdOrHandle?: string };
     const value = channelIdOrHandle?.trim() || "";
-    if (!value) return NextResponse.json({ error: "Channel ID ya @handle batana zaroori hai." }, { status: 400 });
+    if (!value) return NextResponse.json({ error: "A channel ID or @handle is required." }, { status: 400 });
     if (value.length > 200)
       return NextResponse.json({ error: "Channel ID ya handle bohat lamba hai." }, { status: 400 });
     const [entry] = await supabaseRest<Array<{ id: string; channel_id_or_handle: string }>>(
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     console.error("competitor add error:", err);
     const status = String(errorMessage(err, "")).includes("409") ? 409 : 500;
     return NextResponse.json(
-      { error: status === 409 ? "Ye competitor pehle se tracked hai." : "Add nahi ho saka." },
+      { error: status === 409 ? "This competitor is already tracked." : "Could not add." },
       { status }
     );
   }
@@ -75,7 +75,7 @@ export async function DELETE(req: NextRequest) {
   if (!isRoleResult(permission)) return permission;
   try {
     const { id } = (await req.json()) as { id?: string };
-    if (!id) return NextResponse.json({ error: "ID zaroori hai." }, { status: 400 });
+    if (!id) return NextResponse.json({ error: "ID is required." }, { status: 400 });
     await supabaseRest(
       req,
       "youtube_competitors",
@@ -85,6 +85,6 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("competitor remove error:", err);
-    return NextResponse.json({ error: "Remove nahi ho saka." }, { status: 500 });
+    return NextResponse.json({ error: "Could not remove." }, { status: 500 });
   }
 }

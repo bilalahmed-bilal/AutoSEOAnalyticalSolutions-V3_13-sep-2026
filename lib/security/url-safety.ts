@@ -141,7 +141,7 @@ export async function safeFetchPage(rawUrl: string): Promise<{ url: string; resp
     const response = await fetch(current, {
       redirect: "manual",
       headers: {
-        "User-Agent": "AutoSEO-Bot/2.0 (+https://autoseo.example)",
+        "User-Agent": "AIBISORA-Bot/1.0 (+https://aibisora.local)",
         Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
       },
       signal: AbortSignal.timeout(10_000),

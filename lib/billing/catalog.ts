@@ -215,8 +215,9 @@ export const DEFAULT_TRIAL_DAYS = 14;
 /** Free-beta entitlements. Billing stays off; paid catalog remains for later. */
 export const BETA_PLAN: PlanDefinition = {
   slug: "free",
-  name: "Nexora Free Beta",
-  description: "Public free beta. Billing is off. YouTube-first with website SEO and limited Facebook.",
+  name: "AIBISORA Free Beta",
+  description:
+    "Public free beta. Billing is off. Website SEO, YouTube, Facebook, automation, and AI strategist are included. Instagram and WhatsApp are not live.",
   priceCents: 0,
   currency: "USD",
   interval: "month",

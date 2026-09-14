@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     seoHealth: seo[0] || null,
+    seoHistory: seo,
     topIssues: [],
     pendingApprovals: drafts.filter((d) => d.status === "pending").length,
     scheduledActions: jobs.filter((j) => j.status === "queued").length,

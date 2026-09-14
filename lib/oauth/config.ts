@@ -1,3 +1,5 @@
+import { facebookOAuthDialogUrl, facebookOAuthTokenUrl } from "@/lib/oauth/facebook-graph";
+
 export type OAuthProvider = "google-youtube" | "google-search-console" | "facebook";
 
 /** Database connections.provider value for YouTube. Do not rename. */
@@ -68,10 +70,9 @@ export function oauthConfig(provider: OAuthProvider) {
   }
   if (!process.env.FACEBOOK_CLIENT_ID || !process.env.FACEBOOK_CLIENT_SECRET)
     throw new Error("Facebook OAuth credentials are not configured.");
-  const version = process.env.FACEBOOK_GRAPH_VERSION || "v20.0";
   return {
-    authorize: `https://www.facebook.com/${version}/dialog/oauth`,
-    token: `https://graph.facebook.com/${version}/oauth/access_token`,
+    authorize: facebookOAuthDialogUrl(),
+    token: facebookOAuthTokenUrl(),
     clientId: process.env.FACEBOOK_CLIENT_ID,
     clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
     redirectUri: `${base}/api/oauth/callback/facebook`,

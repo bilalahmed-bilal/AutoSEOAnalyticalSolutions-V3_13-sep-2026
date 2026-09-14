@@ -1,19 +1,20 @@
-# Nexora — Integration & Setup Notes
+# AIBISORA — Integration & Setup Notes
 
-Customer-facing product name: **Nexora**. Internal engineering names and some
-example paths may still say AutoSEO.
+Customer-facing product name: **AIBISORA**. Internal engineering names and some
+example paths may still say AutoSEO or Nexora.
 
 Live Google/Meta OAuth round-trips are **REQUIRES_CONFIGURATION** until executed
-in a configured environment. Facebook OAuth is **FIRST_PAGE_ONLY**.
+in a configured environment. Facebook OAuth is **FIRST_PAGE_ONLY**. Facebook
+Graph API production paths use **v26.0**.
 
 ## YouTube and Facebook connections
 
 Website (WordPress/Custom Site) ke bar-aks, YouTube aur Facebook ke liye
 pehle **Google/Meta ke sath apna app register karna** parta hai — ye Anthropic
-ya Nexora nahi, Google/Meta khud maangte hain kisi bhi third-party tool se
+ya AIBISORA nahi, Google/Meta khud maangte hain kisi bhi third-party tool se
 jo unki API use kare. Ye ek-baar ka Cloud/Meta app setup hai.
 
-YouTube users then connect **inside Nexora** with **Connect with Google OAuth**.
+YouTube users then connect **inside AIBISORA** with **Connect with Google OAuth**.
 Do not use OAuth Playground to paste tokens for normal use.
 
 ## YouTube (in-app Google OAuth)
@@ -27,17 +28,17 @@ OAuth config without renaming the stored provider.
 3. Create an **OAuth 2.0 Client ID** (Web application).
 4. Authorized redirect URI:
    `{NEXT_PUBLIC_APP_URL}/api/oauth/callback/google-youtube`
-5. OAuth consent screen pe ye scopes allow karein (Nexora yahi request karta hai):
+5. OAuth consent screen pe ye scopes allow karein (AIBISORA yahi request karta hai):
    - `https://www.googleapis.com/auth/youtube.force-ssl` — existing video metadata
    - `https://www.googleapis.com/auth/yt-analytics.readonly` — Analytics reports
 6. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `NEXT_PUBLIC_APP_URL` in `.env.local`.
-7. In Nexora Publish/settings, click **Connect with Google OAuth**. Google issues
-   an access token and refresh token; Nexora stores them encrypted on the
+7. In AIBISORA Publish/settings, click **Connect with Google OAuth**. Google issues
+   an access token and refresh token; AIBISORA stores them encrypted on the
    `youtube` connection.
 
 Existing YouTube connections authorized **before** Analytics access was requested
 must click **Connect with Google OAuth** again. Refreshing an old token does not
-add missing scopes. Nexora does not treat those tokens as if they have Analytics
+add missing scopes. AIBISORA does not treat those tokens as if they have Analytics
 permission.
 
 **Legacy/testing-only:** a manual access-token field still exists for local
@@ -48,8 +49,8 @@ them in production.
 
 1. **developers.facebook.com** pe ja kar apna account banayein aur ek naya app create karein (type: "Business").
 2. App Dashboard mein "Facebook Login" product add karein.
-3. Nexora includes an in-app **Connect with Facebook OAuth** button (`/api/oauth/facebook`).
-   This beta connects the **first Page only** (`FIRST_PAGE_ONLY`).
+3. AIBISORA includes an in-app **Connect with Facebook OAuth** button (`/api/oauth/facebook`).
+   This beta connects the **first Page only** (`FIRST_PAGE_ONLY`). Graph API version is **v26.0**.
 4. Page Access Token paste, if used, is a **legacy/testing** path:
    - **Graph API Explorer** (developers.facebook.com/tools/explorer)
    - permissions `pages_manage_posts` aur `pages_read_engagement`

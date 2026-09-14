@@ -1,4 +1,5 @@
 import { oauthConfig, type OAuthProvider } from "@/lib/oauth/config";
+import { facebookGraphApiBase } from "@/lib/oauth/facebook-graph";
 import { encryptSecret } from "@/lib/security/secrets";
 import { supabaseAdmin } from "@/lib/db/supabase-rest";
 
@@ -42,7 +43,7 @@ export async function completeOAuth(provider: OAuthProvider, code: string, works
       grant_type: "authorization_code",
     })
   );
-  if (!token.access_token) throw new Error("OAuth provider ne access token nahi diya.");
+  if (!token.access_token) throw new Error("The OAuth provider did not return an access token.");
 
   if (provider === "google-youtube") {
     const expiresAt = Date.now() + Number(token.expires_in || 3600) * 1000;
@@ -69,15 +70,14 @@ export async function completeOAuth(provider: OAuthProvider, code: string, works
     return { provider, displayName: "Google Search Console", expiresAt };
   }
 
-  const version = process.env.FACEBOOK_GRAPH_VERSION || "v20.0";
   const userToken = await exchangeFacebookLongLivedToken(token.access_token);
   const pagesRes = await fetch(
-    `https://graph.facebook.com/${version}/me/accounts?fields=id,name,access_token&access_token=${encodeURIComponent(userToken)}`,
+    `${facebookGraphApiBase()}/me/accounts?fields=id,name,access_token&access_token=${encodeURIComponent(userToken)}`,
     { signal: AbortSignal.timeout(15_000) }
   );
   const pages = await pagesRes.json().catch(() => ({}));
   if (!pagesRes.ok || !Array.isArray(pages.data) || !pages.data.length)
-    throw new Error("Facebook account se koi Page access nahi mila.");
+    throw new Error("No Facebook Page access was available on this account.");
   const page = pages.data[0];
   if (!page.id || !page.access_token) throw new Error("Facebook Page token could not be obtained.");
   await upsertConnection(workspaceId, "facebook", {
@@ -92,7 +92,7 @@ export async function completeOAuth(provider: OAuthProvider, code: string, works
     displayName: page.name || "Facebook Page",
     pageId: page.id,
     pageSelection: "FIRST_PAGE_ONLY",
-    note: "Nexora Free Beta connects the first Facebook Page returned by Meta. Multi-page selection is not available.",
+    note: "AIBISORA Free Beta connects the first Facebook Page returned by Meta. Multi-page selection is not available.",
   };
 }
 
@@ -105,7 +105,7 @@ async function exchangeFacebookLongLivedToken(shortToken: string) {
   url.searchParams.set("fb_exchange_token", shortToken);
   const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data.access_token) throw new Error("Facebook long-lived token obtain nahi ho saka.");
+  if (!res.ok || !data.access_token) throw new Error("A long-lived Facebook token could not be obtained.");
   return data.access_token as string;
 }
 

@@ -14,7 +14,7 @@ export async function queryExperimentPage(
   const connection = await getSearchConsoleConnection(workspaceId);
   if (!connection) throw new Error("Google Search Console connection not configured.");
   const siteUrl = connection.credentials.siteUrl;
-  if (!siteUrl) throw new Error("Search Console property configured nahi hai.");
+  if (!siteUrl) throw new Error("No Search Console property is configured.");
   const res = await fetch(
     `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`,
     {

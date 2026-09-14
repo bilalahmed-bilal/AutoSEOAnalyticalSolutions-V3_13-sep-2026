@@ -16,10 +16,10 @@ export async function publishDraftWithSettings(
   settings: Awaited<ReturnType<typeof getPublishSettingsRemote>>
 ): Promise<string | undefined> {
   if (draft.channel === "website") {
-    if (!settings.website) throw new Error("Website connect nahi hai.");
+    if (!settings.website) throw new Error("Website is not connected.");
 
     if (draft.kind === "seo_fix") {
-      if (!draft.targetUrl) throw new Error("Target URL missing hai.");
+      if (!draft.targetUrl) throw new Error("Target URL is missing.");
       if (settings.website.platformType === "wordpress" && settings.website.wordpress) {
         const result = await applySeoFixesToWordPress(settings.website.wordpress, {
           targetUrl: draft.targetUrl,
@@ -78,8 +78,8 @@ export async function publishDraftWithSettings(
   }
 
   if (draft.channel === "youtube") {
-    if (!settings.youtube) throw new Error("YouTube connect nahi hai.");
-    if (!draft.videoId) throw new Error("Video ID missing hai.");
+    if (!settings.youtube) throw new Error("YouTube is not connected.");
+    if (!draft.videoId) throw new Error("Video ID is missing.");
     const result = await updateYouTubeVideo(settings.youtube.settings, draft.videoId, {
       title: draft.title,
       description: draft.body,
@@ -89,7 +89,7 @@ export async function publishDraftWithSettings(
   }
 
   if (draft.channel === "facebook") {
-    if (!settings.facebook) throw new Error("Facebook connect nahi hai.");
+    if (!settings.facebook) throw new Error("Facebook is not connected.");
     const result = await publishToFacebook(settings.facebook.settings, { message: draft.body });
     return result.link;
   }

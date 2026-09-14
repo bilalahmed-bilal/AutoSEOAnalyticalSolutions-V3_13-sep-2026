@@ -1,6 +1,6 @@
-# Nexora — Consolidated Production Security & Reliability Notes
+# AIBISORA — Consolidated Production Security & Reliability Notes
 
-Historical AutoSEO version notes remain below. Current launch class: **Nexora Free Beta**. See `docs/NEXORA.md`.
+Historical AutoSEO version notes remain below. Current launch class: **AIBISORA Free Beta**. See `docs/AIBISORA.md`.
 
 ## SECURITY-V2
 

@@ -36,7 +36,7 @@ export async function testWordPressConnection(settings: WordPressSettings): Prom
     if (!res.ok) {
       return {
         ok: false,
-        message: `WordPress ne connection reject kar di (status ${res.status}). Username/Application Password check karein.`,
+        message: `WordPress rejected the connection (status ${res.status}). Check the username and application password.`,
       };
     }
     const user = await res.json();
@@ -44,7 +44,7 @@ export async function testWordPressConnection(settings: WordPressSettings): Prom
   } catch {
     return {
       ok: false,
-      message: "Site tak nahi pahunch paye. Site URL check karein aur dobara koshish karein.",
+      message: "Could not reach the site. Check the site URL and try again.",
     };
   }
 }
@@ -96,12 +96,12 @@ export async function applySeoFixesToWordPress(
     signal: AbortSignal.timeout(10_000),
   });
   if (!lookupRes.ok) {
-    throw new Error(`Post dhoondne mein masla hua (status ${lookupRes.status}).`);
+    throw new Error(`Could not look up the post (status ${lookupRes.status}).`);
   }
   const matches = await lookupRes.json();
   if (!matches || matches.length === 0) {
     throw new Error(
-      `"${slug}" slug wala post nahi mila. Note: sirf WordPress posts support hain, static pages ke liye slug match nahi ho sakta.`
+      `No post was found with the slug "${slug}". Note: only WordPress posts are supported; static pages cannot be matched by slug.`
     );
   }
   const postId = matches[0].id;

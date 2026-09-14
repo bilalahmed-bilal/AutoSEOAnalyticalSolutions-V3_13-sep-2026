@@ -5,12 +5,13 @@ import { configuredBillingProvider } from "@/lib/billing/adapter";
 import { RATE_LIMIT_BACKEND } from "@/lib/security/rate-limit";
 import { FEATURE_KEYS } from "@/lib/product/features";
 import { BETA_PLAN } from "@/lib/billing/catalog";
+import { DEFAULT_LANGUAGE_CODE, enabledLanguages } from "@/lib/i18n/registry";
 
 export async function GET(req: NextRequest) {
   const admin = await requirePlatformAdmin(req);
   if (!isAdminResult(admin)) return admin;
   return NextResponse.json({
-    product: "Nexora",
+    product: "AIBISORA",
     beta: isFreeBetaMode(),
     billing: billingActivationStatus(),
     billingProvider: configuredBillingProvider(),
@@ -25,5 +26,11 @@ export async function GET(req: NextRequest) {
       limits: BETA_PLAN.limits,
     },
     secretsExposed: false,
+    languages: {
+      default: DEFAULT_LANGUAGE_CODE,
+      enabled: enabledLanguages().map((item) => item.code),
+      direction: "ltr",
+      selector: enabledLanguages().map((item) => ({ code: item.code, name: item.name })),
+    },
   });
 }

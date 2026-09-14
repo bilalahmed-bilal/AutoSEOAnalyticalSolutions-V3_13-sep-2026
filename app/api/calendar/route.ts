@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       scheduledDate: string;
     };
     if (!channel || !topic || !scheduledDate) {
-      return NextResponse.json({ error: "Channel, topic, aur date sab zaroori hain." }, { status: 400 });
+      return NextResponse.json({ error: "Channel, topic, and date are required." }, { status: 400 });
     }
     const item = await addCalendarItemRemote(
       { req, workspaceId: tenant?.workspaceId },
@@ -40,6 +40,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ item });
   } catch (err) {
     console.error("calendar add error:", err);
-    return NextResponse.json({ error: "Calendar item add nahi ho saka." }, { status: 500 });
+    return NextResponse.json({ error: "The calendar item could not be added." }, { status: 500 });
   }
 }

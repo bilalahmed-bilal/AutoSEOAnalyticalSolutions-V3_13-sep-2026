@@ -10,7 +10,7 @@ function supabaseConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !anonKey) throw new Error("Supabase URL/anon key configured nahi hain.");
+  if (!url || !anonKey) throw new Error("Supabase URL and anon key are not configured.");
   return { url: url.replace(/\/$/, ""), anonKey, serviceRole };
 }
 
@@ -21,7 +21,7 @@ async function supabaseRest(req: NextRequest, path: string, init: RequestInit = 
     ?.replace(/^Bearer\s+/i, "")
     .trim();
   const key = useServiceRole ? serviceRole : anonKey;
-  if (!key) throw new Error("Supabase service role key configured nahi hai.");
+  if (!key) throw new Error("Supabase service role key is not configured.");
 
   const headers = new Headers(init.headers);
   headers.set("apikey", key);
@@ -55,14 +55,17 @@ export async function GET(req: NextRequest) {
     );
     const text = await response.text();
     if (!response.ok)
-      return NextResponse.json({ error: "Workspaces load nahi ho sakin.", details: text }, { status: response.status });
+      return NextResponse.json(
+        { error: "Workspaces could not be loaded.", details: text },
+        { status: response.status }
+      );
     const rows = JSON.parse(text) as Array<{ role: string; workspace: unknown }>;
     return NextResponse.json({
       workspaces: rows.map((row) => ({ ...(row.workspace as object), role: row.role })),
     });
   } catch (error) {
     console.error("workspace list error:", error);
-    return NextResponse.json({ error: "Workspaces load nahi ho sakin." }, { status: 500 });
+    return NextResponse.json({ error: "Workspaces could not be loaded." }, { status: 500 });
   }
 }
 
@@ -77,11 +80,11 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as { name?: string; slug?: string };
     const name = body.name?.trim();
     if (!name || name.length < 2 || name.length > 80) {
-      return NextResponse.json({ error: "Workspace name 2 se 80 characters ka hona chahiye." }, { status: 400 });
+      return NextResponse.json({ error: "Workspace name must be 2 to 80 characters." }, { status: 400 });
     }
 
     const slug = slugify(body.slug || name);
-    if (!slug) return NextResponse.json({ error: "Valid workspace slug zaroori hai." }, { status: 400 });
+    if (!slug) return NextResponse.json({ error: "A valid workspace slug is required." }, { status: 400 });
 
     const workspace = await supabaseRpc<Array<{ id: string; name: string; slug: string; created_at: string }>>(
       req,
@@ -89,19 +92,19 @@ export async function POST(req: NextRequest) {
       { workspace_name: name, workspace_slug: slug }
     );
     const created = Array.isArray(workspace) ? workspace[0] : workspace;
-    if (!created?.id) return NextResponse.json({ error: "Workspace ID return nahi hui." }, { status: 500 });
+    if (!created?.id) return NextResponse.json({ error: "Workspace ID was not returned." }, { status: 500 });
 
     return NextResponse.json({ workspace: { ...created, role: "owner" } }, { status: 201 });
   } catch (error: unknown) {
     console.error("workspace create error:", error);
-    const message = String(errorMessage(error, "Workspace create nahi ho saka."));
+    const message = String(errorMessage(error, "The workspace could not be created."));
     const status = /duplicate|unique/i.test(message)
       ? 409
       : /invalid workspace|invalid workspace slug/i.test(message)
         ? 400
         : 500;
     return NextResponse.json(
-      { error: status === 409 ? "Workspace slug already use ho raha hai." : "Workspace create nahi ho saka." },
+      { error: status === 409 ? "That workspace slug is already in use." : "The workspace could not be created." },
       { status }
     );
   }

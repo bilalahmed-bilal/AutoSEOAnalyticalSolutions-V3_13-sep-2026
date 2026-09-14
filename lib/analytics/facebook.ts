@@ -8,8 +8,11 @@
 
 import type { FacebookSettings } from "@/lib/store";
 import { type UnknownRecord } from "@/lib/unknown";
+import { facebookGraphApiBase } from "@/lib/oauth/facebook-graph";
 
-const GRAPH_API = "https://graph.facebook.com/v20.0";
+function graphApi() {
+  return facebookGraphApiBase();
+}
 
 export interface FacebookPageStats {
   pageName: string;
@@ -27,7 +30,7 @@ export interface FacebookPostStats {
 
 export async function getFacebookPageStats(settings: FacebookSettings): Promise<FacebookPageStats | null> {
   const res = await fetch(
-    `${GRAPH_API}/${settings.pageId}?fields=name,fan_count&access_token=${settings.pageAccessToken}`,
+    `${graphApi()}/${settings.pageId}?fields=name,fan_count&access_token=${settings.pageAccessToken}`,
     { signal: AbortSignal.timeout(10_000) }
   );
   if (!res.ok) return null;
@@ -38,7 +41,7 @@ export async function getFacebookPageStats(settings: FacebookSettings): Promise<
 export async function getFacebookRecentPosts(settings: FacebookSettings, limit = 10): Promise<FacebookPostStats[]> {
   const fields = "message,created_time,likes.summary(true),comments.summary(true),shares";
   const res = await fetch(
-    `${GRAPH_API}/${settings.pageId}/posts?fields=${fields}&limit=${limit}&access_token=${settings.pageAccessToken}`,
+    `${graphApi()}/${settings.pageId}/posts?fields=${fields}&limit=${limit}&access_token=${settings.pageAccessToken}`,
     { signal: AbortSignal.timeout(10_000) }
   );
   if (!res.ok) return [];

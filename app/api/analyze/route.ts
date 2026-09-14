@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Valid x-workspace-id required." }, { status: 400 });
   if (!rate.ok) {
     return NextResponse.json(
-      { error: "Too many analysis requests. Thori dair baad dobara try karein." },
+      { error: "Too many analysis requests. Please try again shortly." },
       { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
     );
   }
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
       console.error("AI SEO interpretation failed:", aiError);
       analysis = {
         score: deterministic.score,
-        summary: "Deterministic technical SEO checks complete ho gaye hain.",
+        summary: "Deterministic technical SEO checks are complete.",
         issues: deterministic.issues.map(({ severity, issue, fix }) => ({ severity, issue, fix })),
       };
     }
@@ -94,8 +94,8 @@ export async function POST(req: NextRequest) {
     const message = /private|reserved|local|not allowed|too large|redirect/i.test(detail)
       ? detail
       : /fetch failed/i.test(detail) || (err instanceof Error && err.name === "TimeoutError")
-        ? "Website tak nahi pahunch paye. URL check karein aur dobara koshish karein."
-        : "SEO analysis fail ho gaya. Dobara koshish karein.";
+        ? "The website could not be reached. Check the URL and try again."
+        : "SEO analysis failed. Please try again.";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

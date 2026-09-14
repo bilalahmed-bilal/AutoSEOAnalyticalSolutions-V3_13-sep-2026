@@ -10,10 +10,22 @@ import OperatingSystemTab from "@/app/os/OperatingSystemTab";
 import DashboardPanel from "@/app/dashboard/DashboardPanel";
 import ConnectionsPanel from "@/app/connections/ConnectionsPanel";
 import SubscriptionPanel from "@/app/billing/SubscriptionPanel";
+import WebsiteOverviewPanel from "@/app/website/WebsiteOverviewPanel";
 import { productBrand } from "@/lib/product/brand";
 import type { BusinessProfile, Channel, GeneratedContent, Language, SeoAnalysis, SeoFixes } from "@/lib/claude";
 import type { CrawlResult } from "@/lib/seo-crawler";
 import { errorMessage, scheduleMount, type UnknownRecord } from "@/lib/unknown";
+import LanguageSelector from "@/app/i18n/LanguageSelector";
+import ThemeToggle from "@/app/theme/ThemeToggle";
+import AppShell from "@/components/shell/AppShell";
+import { Alert, AiBadge, Badge, EmptyState, Skeleton } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card, MetricCard, PageHeader, SectionHeader } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Field";
+import { Icon } from "@/components/ui/Icon";
+import { ChoiceChip, ScoreMark, Sparkline } from "@/components/ui/Visual";
+import { CONTENT_LANGUAGES, DEFAULT_CONTENT_LANGUAGE } from "@/lib/i18n/content-language";
+import type { Tab } from "@/lib/ui/nav";
 
 const CHANNELS: { id: Channel; label: string; note: string }[] = [
   { id: "website", label: "Website", note: "Blog/page content + meta description" },
@@ -21,137 +33,7 @@ const CHANNELS: { id: Channel; label: string; note: string }[] = [
   { id: "facebook", label: "Facebook", note: "Post + hashtags" },
 ];
 
-const LANGUAGES: { id: Language; label: string }[] = [
-  { id: "ur", label: "اردو" },
-  { id: "roman-ur", label: "Roman Urdu" },
-  { id: "en", label: "English" },
-];
-
-type Tab =
-  | "dashboard"
-  | "connections"
-  | "subscription"
-  | "generate"
-  | "analyze"
-  | "publish"
-  | "analytics"
-  | "keywords"
-  | "competitors"
-  | "strategy"
-  | "studio"
-  | "quality"
-  | "technical"
-  | "architecture"
-  | "local"
-  | "experiments"
-  | "monitoring"
-  | "advancedAnalytics"
-  | "strategist"
-  | "operatingSystem"
-  | "automation"
-  | "system"
-  | "ytKeywordResearch"
-  | "ytSeoStudio"
-  | "ytTagGenerator"
-  | "ytChannelAudit"
-  | "ytThumbnailAB"
-  | "ytBulkOptimizer"
-  | "ytCommunityPosts"
-  | "ytPerformanceAnalytics"
-  | "ytCompetitorTracking"
-  | "ytRetentionInsights"
-  | "ytPerformanceIntelligence"
-  | "fbPageSeo"
-  | "fbHashtagResearch"
-  | "fbPostAB"
-  | "fbBulkScheduler"
-  | "fbEngagementAssistant"
-  | "fbPostAnalytics"
-  | "fbCompetitorTracking"
-  | "fbAudienceInsights";
-
-type TabCategory = "website" | "youtube" | "facebook" | "overview";
-
-const TAB_CATEGORIES: { id: TabCategory; label: string; icon: string }[] = [
-  { id: "website", label: "Website", icon: "W" },
-  { id: "youtube", label: "YouTube", icon: "Y" },
-  { id: "facebook", label: "Facebook", icon: "F" },
-  { id: "overview", label: "Workspace", icon: "N" },
-];
-
-// Content Generator, Publish, and AI Content Studio each already let you pick
-// a channel inside the tool itself (website/youtube/facebook) — so they
-// appear under all three channel categories rather than living in just one.
-// Everything else here is genuinely website-only right now (Section 4.1's
-// note: YouTube/Facebook don't have their own Keyword Research, Technical
-// SEO, etc. yet — that's future work, not something this navigation change
-// can paper over).
-const TABS_BY_CATEGORY: Record<TabCategory, { id: Tab; label: string; group?: string }[]> = {
-  website: [
-    { id: "analyze", label: "SEO Analyzer", group: "SEO" },
-    { id: "keywords", label: "Keyword Research", group: "SEO" },
-    { id: "competitors", label: "Competitor Intelligence", group: "SEO" },
-    { id: "technical", label: "Technical SEO", group: "SEO" },
-    { id: "architecture", label: "Internal Linking", group: "SEO" },
-    { id: "local", label: "Local SEO", group: "SEO" },
-    { id: "strategy", label: "Content Strategy", group: "Marketing" },
-    { id: "generate", label: "Content Generator", group: "Marketing" },
-    { id: "publish", label: "Publish", group: "Marketing" },
-    { id: "analytics", label: "Analytics", group: "Analytics" },
-  ],
-  youtube: [
-    { id: "ytKeywordResearch", label: "YouTube Keyword Research", group: "SEO" },
-    { id: "ytSeoStudio", label: "Video SEO Studio", group: "SEO" },
-    { id: "ytTagGenerator", label: "Tag Generator", group: "SEO" },
-    { id: "ytChannelAudit", label: "Channel Audit", group: "SEO" },
-    { id: "generate", label: "Content Generator", group: "Marketing" },
-    { id: "publish", label: "Publish", group: "Marketing" },
-    { id: "studio", label: "AI Content Studio", group: "Marketing" },
-    { id: "ytThumbnailAB", label: "Thumbnail & Title A/B Testing", group: "Marketing" },
-    { id: "ytBulkOptimizer", label: "Bulk Video Optimizer", group: "Marketing" },
-    { id: "ytCommunityPosts", label: "Community Post Generator", group: "Marketing" },
-    { id: "analytics", label: "Analytics", group: "Analytics" },
-    { id: "ytPerformanceAnalytics", label: "Video Performance Analytics", group: "Analytics" },
-    { id: "ytCompetitorTracking", label: "Competitor Channel Tracking", group: "Analytics" },
-    { id: "ytRetentionInsights", label: "Watch Time & Retention Insights", group: "Analytics" },
-    { id: "ytPerformanceIntelligence", label: "Performance Intelligence", group: "Analytics" },
-  ],
-  facebook: [
-    { id: "fbPageSeo", label: "Page & Post Discovery Optimization", group: "SEO" },
-    { id: "fbHashtagResearch", label: "Hashtag & Keyword Research", group: "SEO" },
-    { id: "generate", label: "Content Generator", group: "Marketing" },
-    { id: "publish", label: "Publish", group: "Marketing" },
-    { id: "studio", label: "AI Content Studio", group: "Marketing" },
-    { id: "fbPostAB", label: "Post A/B Testing", group: "Marketing" },
-    { id: "fbBulkScheduler", label: "Bulk Post Scheduler", group: "Marketing" },
-    { id: "fbEngagementAssistant", label: "Comment & Engagement Assistant", group: "Marketing" },
-    { id: "analytics", label: "Analytics", group: "Analytics" },
-    { id: "fbPostAnalytics", label: "Post Performance Analytics", group: "Analytics" },
-    { id: "fbCompetitorTracking", label: "Competitor Page Tracking", group: "Analytics" },
-    { id: "fbAudienceInsights", label: "Audience Insights", group: "Analytics" },
-  ],
-  overview: [
-    { id: "dashboard", label: "Dashboard" },
-    { id: "connections", label: "Connections" },
-    { id: "subscription", label: "Subscription & Usage" },
-    { id: "analytics", label: "Analytics (All Channels)" },
-    { id: "automation", label: "Automation" },
-    { id: "quality", label: "Quality & Fact Check" },
-    { id: "experiments", label: "SEO Experiments" },
-    { id: "monitoring", label: "Monitoring & Alerts" },
-    { id: "advancedAnalytics", label: "Advanced Analytics & ROI" },
-    { id: "strategist", label: "AI SEO Strategist" },
-    { id: "operatingSystem", label: "AI Operating System" },
-    { id: "system", label: "Team & Jobs" },
-  ],
-};
-
-function categoryOf(tab: Tab): TabCategory {
-  for (const cat of TAB_CATEGORIES) {
-    if (TABS_BY_CATEGORY[cat.id].some((t) => t.id === tab)) return cat.id;
-  }
-  return "website";
-}
+const CONTENT_LANGUAGE_OPTIONS = CONTENT_LANGUAGES;
 
 export default function HomePage() {
   const supabaseConfigured = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL);
@@ -192,13 +74,13 @@ export default function HomePage() {
 
   if (!ready)
     return (
-      <main className="min-h-screen bg-paper p-10 text-center text-sm text-ink/60">
+      <main className="flex min-h-screen items-center justify-center bg-bg p-10 text-center text-sm text-muted">
         {productBrand.productName} is loading…
       </main>
     );
   if (supabaseConfigured && !user) {
     return (
-      <main className="min-h-screen bg-paper px-6 py-16">
+      <main className="min-h-screen bg-bg px-6 py-16">
         <AuthScreen onAuthenticated={() => loadCurrentUser().then(setUser)} />
       </main>
     );
@@ -212,145 +94,193 @@ export default function HomePage() {
 }
 
 function AuthenticatedDashboard({ user, onSignOut }: { user: UnknownRecord; onSignOut: () => void }) {
-  const [tab, setTabRaw] = useState<Tab>("dashboard");
-  const [category, setCategory] = useState<TabCategory>(categoryOf("dashboard"));
-
-  function selectCategory(c: TabCategory) {
-    setCategory(c);
-    setTabRaw(TABS_BY_CATEGORY[c][0].id);
-  }
+  const [tab, setTab] = useState<Tab>("dashboard");
+  const userLabel = user?.id === "local-demo-user" ? "Local demo mode" : String(user?.email || "Signed in");
 
   return (
-    <main className="min-h-screen bg-paper">
-      <header className="border-b-4 border-ink bg-ink text-paper">
-        <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-          <p className="text-xs uppercase tracking-[.2em] text-signal">Free Beta</p>
-          <p className="font-display text-3xl leading-tight text-signal">{productBrand.productName}</p>
-          <h1 className="font-head mt-2 text-2xl font-semibold sm:text-3xl">{productBrand.tagline}</h1>
-          <p className="mt-3 max-w-xl text-sm text-paper/80">
-            Discover, analyze, recommend, create, approve, apply, verify, and measure — humans stay in control of
-            publishing. Billing is off during Free Beta.
-          </p>
+    <AppShell
+      tab={tab}
+      onSelect={setTab}
+      userLabel={userLabel}
+      onSignOut={user?.id === "local-demo-user" ? undefined : onSignOut}
+      showAdmin
+    >
+      {tab === "dashboard" && <DashboardPanel onNavigate={setTab} />}
+      {tab === "websiteOverview" && <WebsiteOverviewPanel onNavigate={setTab} />}
+      {tab === "connections" && <ConnectionsPanel />}
+      {tab === "subscription" && <SubscriptionPanel />}
+      {tab === "generate" && <ContentGeneratorTab />}
+      {tab === "analyze" && <SeoAnalyzerTab />}
+      {tab === "publish" && <PublishTab />}
+      {tab === "analytics" && <AnalyticsTab />}
+      {tab === "keywords" && <KeywordResearchTab />}
+      {tab === "competitors" && <CompetitorIntelligenceTab />}
+      {tab === "strategy" && <ContentStrategyTab />}
+      {tab === "studio" && <ContentStudioTab />}
+      {tab === "quality" && <ContentQualityTab />}
+      {tab === "technical" && <TechnicalSeoTab />}
+      {tab === "architecture" && <SiteArchitectureTab />}
+      {tab === "local" && <LocalSeoTab />}
+      {tab === "experiments" && <ExperimentsTab />}
+      {tab === "monitoring" && <MonitoringTab />}
+      {tab === "advancedAnalytics" && <AdvancedAnalyticsTab />}
+      {tab === "ytPerformanceIntelligence" && <YouTubePerformanceIntelligenceTab />}
+      {tab === "strategist" && <StrategistTab />}
+      {tab === "operatingSystem" && <OperatingSystemTab />}
+      {tab === "automation" && <AutomationTab />}
+      {tab === "system" && <SystemTab />}
+      {tab === "ytKeywordResearch" && <YtKeywordResearchTab />}
+      {tab === "ytSeoStudio" && <YtSeoStudioTab />}
+      {tab === "ytTagGenerator" && <YtTagGeneratorTab />}
+      {tab === "ytChannelAudit" && <YtChannelAuditTab />}
+      {tab === "ytThumbnailAB" && <YtThumbnailABTab />}
+      {tab === "ytBulkOptimizer" && <YtBulkOptimizerTab />}
+      {tab === "ytCommunityPosts" && <YtCommunityPostsTab />}
+      {tab === "ytPerformanceAnalytics" && <YtPerformanceAnalyticsTab />}
+      {tab === "ytCompetitorTracking" && <YtCompetitorTrackingTab />}
+      {tab === "ytRetentionInsights" && <YtRetentionInsightsTab />}
+      {tab === "fbPageSeo" && <FbPageSeoTab />}
+      {tab === "fbHashtagResearch" && <FbHashtagResearchTab />}
+      {tab === "fbPostAB" && <FbPostABTab />}
+      {tab === "fbBulkScheduler" && <FbBulkSchedulerTab />}
+      {tab === "fbEngagementAssistant" && <FbEngagementAssistantTab />}
+      {tab === "fbPostAnalytics" && <FbPostAnalyticsTab />}
+      {tab === "fbCompetitorTracking" && <FbCompetitorTrackingTab />}
+      {tab === "fbAudienceInsights" && <FbAudienceInsightsTab />}
+      {tab === "websiteBuilder" && (
+        <ComingSoonPanel
+          icon="globe"
+          eyebrow="Website"
+          title="Create your own website"
+          description="Build a conversion-ready website inside AIBISORA, then connect it to the same SEO and marketing workflow."
+          detail="Website creation is on the roadmap. The current release focuses on helping you analyze and grow websites you already manage."
+        />
+      )}
+      {tab === "instagram" && (
+        <ComingSoonPanel
+          icon="instagram"
+          eyebrow="Instagram"
+          title="Instagram tools are coming soon"
+          description="AIBISORA is preparing a focused Instagram workflow for content, optimization, publishing, and performance."
+          detail="This channel is visible now so you can see where Instagram will fit into your AIBISORA workspace. Nothing is claimed as live yet."
+        />
+      )}
+      {tab === "whatsappMarketing" && (
+        <ComingSoonPanel
+          icon="whatsapp"
+          eyebrow="WhatsApp"
+          title="WhatsApp marketing is coming soon"
+          description="A dedicated WhatsApp marketing and automation workspace is planned for campaigns, broadcasts, AI replies, and measurement."
+          detail="Future WhatsApp capabilities will be introduced here as they are implemented and verified."
+          bullets={[
+            "Marketing campaigns",
+            "Campaigns and broadcasts",
+            "Automation workflows",
+            "AI replies",
+            "Analytics",
+          ]}
+        />
+      )}
+      {tab === "whatsappCampaigns" && (
+        <ComingSoonPanel
+          icon="whatsapp"
+          eyebrow="WhatsApp"
+          title="Campaigns are coming soon"
+          description="Plan and manage WhatsApp campaigns from one focused workspace."
+        />
+      )}
+      {tab === "whatsappAutomation" && (
+        <ComingSoonPanel
+          icon="whatsapp"
+          eyebrow="WhatsApp"
+          title="Automation is coming soon"
+          description="Build approval-aware WhatsApp automation workflows when this channel is ready."
+        />
+      )}
+      {tab === "whatsappAiReplies" && (
+        <ComingSoonPanel
+          icon="whatsapp"
+          eyebrow="WhatsApp"
+          title="AI replies are coming soon"
+          description="Draft smarter WhatsApp replies with AIBISORA AI when this capability is released."
+        />
+      )}
+      {tab === "whatsappBroadcasts" && (
+        <ComingSoonPanel
+          icon="whatsapp"
+          eyebrow="WhatsApp"
+          title="Broadcasts are coming soon"
+          description="Manage future WhatsApp broadcasts from the AIBISORA workspace."
+        />
+      )}
+      {tab === "whatsappAnalytics" && (
+        <ComingSoonPanel
+          icon="whatsapp"
+          eyebrow="WhatsApp"
+          title="WhatsApp analytics are coming soon"
+          description="Measure campaign and messaging performance when the WhatsApp channel is live."
+        />
+      )}
+    </AppShell>
+  );
+}
 
-          <WorkspaceBar />
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-paper/70">
-            <span>
-              {user?.id === "local-demo-user"
-                ? "Local demo mode (Supabase not configured)"
-                : user?.email || "Signed in"}
-            </span>
-            <span className="flex gap-2">
-              <a href="/admin" className="border border-paper/30 px-3 py-1.5 hover:border-paper/60">
-                Admin
-              </a>
-              {user?.id !== "local-demo-user" && (
-                <button onClick={onSignOut} className="border border-paper/30 px-3 py-1.5 hover:border-paper/60">
-                  Sign out
-                </button>
-              )}
-            </span>
-          </div>
-
-          <div className="mt-6 flex flex-wrap gap-2">
-            {TAB_CATEGORIES.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => selectCategory(cat.id)}
-                className={`focus-ring border-2 px-4 py-2 text-sm font-medium transition ${
-                  category === cat.id
-                    ? "border-signal bg-signal text-ink"
-                    : "border-paper/30 bg-transparent text-paper/80 hover:border-paper/60"
-                }`}
-              >
-                <span className="mr-1.5">{cat.icon}</span>
-                {cat.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-3 border-t border-paper/20 pt-3">
-            {(() => {
-              const tabs = TABS_BY_CATEGORY[category];
-              const hasGroups = tabs.some((t) => t.group);
-              if (!hasGroups) {
-                return (
-                  <div className="flex flex-wrap gap-2">
-                    {tabs.map((t) => (
-                      <TabButton key={t.id} active={tab === t.id} onClick={() => setTabRaw(t.id)}>
-                        {t.label}
-                      </TabButton>
-                    ))}
+function ComingSoonPanel({
+  icon,
+  eyebrow,
+  title,
+  description,
+  detail,
+  bullets,
+}: {
+  icon: Parameters<typeof Icon>[0]["name"];
+  eyebrow: string;
+  title: string;
+  description: string;
+  detail?: string;
+  bullets?: string[];
+}) {
+  return (
+    <div className="space-y-6">
+      <PageHeader eyebrow={eyebrow} title={title} description={description} />
+      <Card className="overflow-hidden">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(16rem,0.6fr)] lg:items-center">
+          <div>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-[color-mix(in_srgb,var(--nx-primary)_25%,var(--nx-border))] bg-[color-mix(in_srgb,var(--nx-primary)_10%,transparent)] text-primary">
+                <Icon name={icon} className="h-5 w-5" />
+              </span>
+              <Badge tone="warning">Coming Soon</Badge>
+            </div>
+            {detail ? (
+              <p className="mt-5 max-w-2xl text-sm leading-7 text-[var(--nx-text-secondary)]">{detail}</p>
+            ) : null}
+            {bullets?.length ? (
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                {bullets.map((bullet) => (
+                  <div
+                    key={bullet}
+                    className="flex items-center gap-2 rounded-[12px] border border-line bg-elevated px-3 py-2.5 text-sm text-ink"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
+                    {bullet}
                   </div>
-                );
-              }
-              const groups = Array.from(new Set(tabs.map((t) => t.group || "")));
-              return (
-                <div className="space-y-3">
-                  {groups.map((g) => (
-                    <div key={g}>
-                      <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-paper/50">{g}</p>
-                      <div className="flex flex-wrap gap-2">
-                        {tabs
-                          .filter((t) => (t.group || "") === g)
-                          .map((t) => (
-                            <TabButton key={t.id} active={tab === t.id} onClick={() => setTabRaw(t.id)}>
-                              {t.label}
-                            </TabButton>
-                          ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <div className="rounded-[20px] border border-[color-mix(in_srgb,var(--nx-primary)_20%,var(--nx-border))] bg-[color-mix(in_srgb,var(--nx-primary)_6%,var(--nx-surface))] p-6 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--nx-primary)_30%,var(--nx-border))] bg-[color-mix(in_srgb,var(--nx-primary)_12%,transparent)] text-primary">
+              <Icon name={icon} className="h-7 w-7" />
+            </div>
+            <p className="mt-4 text-sm font-semibold text-ink">Built into the roadmap</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--nx-text-secondary)]">
+              We will enable this channel only after the underlying workflow is implemented and verified.
+            </p>
           </div>
         </div>
-      </header>
-
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-        {tab === "dashboard" && <DashboardPanel />}
-        {tab === "connections" && <ConnectionsPanel />}
-        {tab === "subscription" && <SubscriptionPanel />}
-        {tab === "generate" && <ContentGeneratorTab />}
-        {tab === "analyze" && <SeoAnalyzerTab />}
-        {tab === "publish" && <PublishTab />}
-        {tab === "analytics" && <AnalyticsTab />}
-        {tab === "keywords" && <KeywordResearchTab />}
-        {tab === "competitors" && <CompetitorIntelligenceTab />}
-        {tab === "strategy" && <ContentStrategyTab />}
-        {tab === "studio" && <ContentStudioTab />}
-        {tab === "quality" && <ContentQualityTab />}
-        {tab === "technical" && <TechnicalSeoTab />}
-        {tab === "architecture" && <SiteArchitectureTab />}
-        {tab === "local" && <LocalSeoTab />}
-        {tab === "experiments" && <ExperimentsTab />}
-        {tab === "monitoring" && <MonitoringTab />}
-        {tab === "advancedAnalytics" && <AdvancedAnalyticsTab />}
-        {tab === "ytPerformanceIntelligence" && <YouTubePerformanceIntelligenceTab />}
-        {tab === "strategist" && <StrategistTab />}
-        {tab === "operatingSystem" && <OperatingSystemTab />}
-        {tab === "automation" && <AutomationTab />}
-        {tab === "system" && <SystemTab />}
-        {tab === "ytKeywordResearch" && <YtKeywordResearchTab />}
-        {tab === "ytSeoStudio" && <YtSeoStudioTab />}
-        {tab === "ytTagGenerator" && <YtTagGeneratorTab />}
-        {tab === "ytChannelAudit" && <YtChannelAuditTab />}
-        {tab === "ytThumbnailAB" && <YtThumbnailABTab />}
-        {tab === "ytBulkOptimizer" && <YtBulkOptimizerTab />}
-        {tab === "ytCommunityPosts" && <YtCommunityPostsTab />}
-        {tab === "ytPerformanceAnalytics" && <YtPerformanceAnalyticsTab />}
-        {tab === "ytCompetitorTracking" && <YtCompetitorTrackingTab />}
-        {tab === "ytRetentionInsights" && <YtRetentionInsightsTab />}
-        {tab === "fbPageSeo" && <FbPageSeoTab />}
-        {tab === "fbHashtagResearch" && <FbHashtagResearchTab />}
-        {tab === "fbPostAB" && <FbPostABTab />}
-        {tab === "fbBulkScheduler" && <FbBulkSchedulerTab />}
-        {tab === "fbEngagementAssistant" && <FbEngagementAssistantTab />}
-        {tab === "fbPostAnalytics" && <FbPostAnalyticsTab />}
-        {tab === "fbCompetitorTracking" && <FbCompetitorTrackingTab />}
-        {tab === "fbAudienceInsights" && <FbAudienceInsightsTab />}
-      </div>
-    </main>
+      </Card>
+    </div>
   );
 }
 
@@ -360,7 +290,7 @@ function AuthenticatedDashboard({ user, onSignOut }: { user: UnknownRecord; onSi
 
 function YtKeywordResearchTab() {
   const [niche, setNiche] = useState("");
-  const [language, setLanguage] = useState<Language>("ur");
+  const [language, setLanguage] = useState<Language>(DEFAULT_CONTENT_LANGUAGE);
   const [ideas, setIdeas] = useState<{ keyword: string; intent: string; competitionNote: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -379,7 +309,7 @@ function YtKeywordResearchTab() {
       if (!res.ok) throw new Error(data.error);
       setIdeas(data.keywords || []);
     } catch (e: unknown) {
-      setError(errorMessage(e, "Kuch ghalat ho gaya."));
+      setError(errorMessage(e, "Something went wrong."));
     } finally {
       setLoading(false);
     }
@@ -389,13 +319,13 @@ function YtKeywordResearchTab() {
     <section className="border border-line bg-white/60 p-6">
       <h2 className="font-head text-lg font-semibold text-ink">YouTube Keyword Research</h2>
       <p className="mt-1 text-sm text-ink/60">
-        Web search se abhi ke real YouTube search trends dekh kar realistically-rankable keywords suggest karega.
+        Suggest realistically rankable keywords from current YouTube search trends.
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <input
           value={niche}
           onChange={(e) => setNiche(e.target.value)}
-          placeholder="مثال: بس ٹکٹ بکنگ Pakistan"
+          placeholder="e.g. bus ticket booking"
           className="focus-ring flex-1 border border-line bg-white px-3 py-2 text-ink placeholder:text-ink/30"
         />
         <button
@@ -403,11 +333,11 @@ function YtKeywordResearchTab() {
           disabled={!niche.trim() || loading}
           className="focus-ring border-2 border-ink bg-signal px-4 py-2 text-sm font-medium text-ink transition hover:bg-ink hover:text-signal disabled:opacity-50"
         >
-          {loading ? "…" : "Keywords دیکھیں"}
+          {loading ? "…" : "Get keywords"}
         </button>
       </div>
       <div className="mt-3 flex gap-2">
-        {LANGUAGES.map((l) => (
+        {CONTENT_LANGUAGE_OPTIONS.map((l) => (
           <button
             key={l.id}
             onClick={() => setLanguage(l.id)}
@@ -442,7 +372,7 @@ function YtKeywordResearchTab() {
 function YtSeoStudioTab() {
   const [videoId, setVideoId] = useState("");
   const [niche, setNiche] = useState("");
-  const [language, setLanguage] = useState<Language>("ur");
+  const [language, setLanguage] = useState<Language>(DEFAULT_CONTENT_LANGUAGE);
   const [existing, setExisting] = useState<UnknownRecord | null>(null);
   const [fix, setFix] = useState<{ title: string; description: string; tags: string[]; rationale: string } | null>(
     null
@@ -469,7 +399,7 @@ function YtSeoStudioTab() {
       setExisting(data.existing);
       setFix(data.fix);
     } catch (e: unknown) {
-      setError(errorMessage(e, "Kuch ghalat ho gaya."));
+      setError(errorMessage(e, "Something went wrong."));
     } finally {
       setLoading(false);
     }
@@ -494,11 +424,9 @@ function YtSeoStudioTab() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setQueueMsg(
-        data.autoPublished ? "Auto-publish ho gaya! 'Publish' tab check karein." : "Approval queue mein bhej diya."
-      );
+      setQueueMsg(data.autoPublished ? "Auto-published. Check the Publish tab." : "Sent to the approval queue.");
     } catch (e: unknown) {
-      setQueueMsg(errorMessage(e, "Kuch ghalat ho gaya."));
+      setQueueMsg(errorMessage(e, "Something went wrong."));
     } finally {
       setQueueLoading(false);
     }
@@ -508,15 +436,14 @@ function YtSeoStudioTab() {
     <section className="border border-line bg-white/60 p-6">
       <h2 className="font-head text-lg font-semibold text-ink">Video SEO Studio</h2>
       <p className="mt-1 text-sm text-ink/60">
-        Existing video ki current title/description/tags dekh kar behtar version generate karega — jaisa TubeBuddy ka
-        'SEO Studio'.
+        Generate a stronger title, description, and tags from the current video metadata.
       </p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <Field label="Video ID" value={videoId} onChange={setVideoId} placeholder="dQw4w9WgXcQ" />
         <Field label="Niche" value={niche} onChange={setNiche} placeholder="Bus ticket booking" />
       </div>
       <div className="mt-3 flex gap-2">
-        {LANGUAGES.map((l) => (
+        {CONTENT_LANGUAGE_OPTIONS.map((l) => (
           <button
             key={l.id}
             onClick={() => setLanguage(l.id)}
@@ -533,7 +460,7 @@ function YtSeoStudioTab() {
         disabled={!videoId.trim() || !niche.trim() || loading}
         className="focus-ring mt-4 w-full border-2 border-ink bg-signal py-2.5 font-medium text-ink transition hover:bg-ink hover:text-signal disabled:opacity-50"
       >
-        {loading ? "بن رہا ہے…" : "Fix Generate کریں"}
+        {loading ? "Generating…" : "Generate fixes"}
       </button>
       {error && <p className="mt-2 text-sm text-clay">{error}</p>}
 
@@ -556,7 +483,7 @@ function YtSeoStudioTab() {
             disabled={queueLoading}
             className="focus-ring border-2 border-ink bg-paper py-2.5 font-medium text-ink transition hover:bg-ink hover:text-paper disabled:opacity-50 sm:col-span-2"
           >
-            {queueLoading ? "…" : "Approval کے لیے بھیجیں"}
+            {queueLoading ? "…" : "Send for approval"}
           </button>
           {queueMsg && <p className="text-sm text-ink/70 sm:col-span-2">{queueMsg}</p>}
         </div>
@@ -567,7 +494,7 @@ function YtSeoStudioTab() {
 
 function YtTagGeneratorTab() {
   const [topic, setTopic] = useState("");
-  const [language, setLanguage] = useState<Language>("ur");
+  const [language, setLanguage] = useState<Language>(DEFAULT_CONTENT_LANGUAGE);
   const [tags, setTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -586,7 +513,7 @@ function YtTagGeneratorTab() {
       if (!res.ok) throw new Error(data.error);
       setTags(data.tags || []);
     } catch (e: unknown) {
-      setError(errorMessage(e, "Kuch ghalat ho gaya."));
+      setError(errorMessage(e, "Something went wrong."));
     } finally {
       setLoading(false);
     }
@@ -607,11 +534,11 @@ function YtTagGeneratorTab() {
           disabled={!topic.trim() || loading}
           className="focus-ring border-2 border-ink bg-signal px-4 py-2 text-sm font-medium text-ink transition hover:bg-ink hover:text-signal disabled:opacity-50"
         >
-          {loading ? "…" : "Tags بنائیں"}
+          {loading ? "…" : "Generate tags"}
         </button>
       </div>
       <div className="mt-3 flex gap-2">
-        {LANGUAGES.map((l) => (
+        {CONTENT_LANGUAGE_OPTIONS.map((l) => (
           <button
             key={l.id}
             onClick={() => setLanguage(l.id)}
@@ -666,13 +593,12 @@ function YtChannelAuditTab() {
     <section className="border border-line bg-white/60 p-6">
       <h2 className="font-head text-lg font-semibold text-ink">Channel Audit</h2>
       <p className="mt-1 text-sm text-ink/60">
-        Channel average se kaafi kam perform karne wali videos — inhe 'Video SEO Studio' se dobara optimize karne ka
-        soch sakte hain.
+        Videos performing well below the channel average — consider optimizing them in Video SEO Studio.
       </p>
-      {loading && <p className="mt-4 text-sm text-ink/50">Load ho raha hai…</p>}
+      {loading && <p className="mt-4 text-sm text-ink/50">Loading…</p>}
       {error && <p className="mt-4 text-sm text-clay">{error}</p>}
       {!loading && !error && underperforming.length === 0 && videos.length > 0 && (
-        <p className="mt-4 text-sm text-ink/50">Koi bhi video channel average se kaafi kam nahi hai — acha sign hai!</p>
+        <p className="mt-4 text-sm text-ink/50">No videos are significantly below the channel average — a good sign.</p>
       )}
       {underperforming.length > 0 && (
         <div className="mt-4 space-y-2">
@@ -694,7 +620,7 @@ function YtThumbnailABTab() {
   const [topic, setTopic] = useState("");
   const [videoId, setVideoId] = useState("");
   const [profile, setProfile] = useState<BusinessProfile>({ businessName: "", niche: "", audience: "", tone: "" });
-  const [language, setLanguage] = useState<Language>("ur");
+  const [language, setLanguage] = useState<Language>(DEFAULT_CONTENT_LANGUAGE);
   const [variants, setVariants] = useState<{ variantA: { title: string }; variantB: { title: string } } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -714,7 +640,7 @@ function YtThumbnailABTab() {
       if (!res.ok) throw new Error(data.error);
       setVariants(data.variants);
     } catch (e: unknown) {
-      setError(errorMessage(e, "Kuch ghalat ho gaya."));
+      setError(errorMessage(e, "Something went wrong."));
     } finally {
       setLoading(false);
     }
@@ -722,7 +648,7 @@ function YtThumbnailABTab() {
 
   async function applyVariant(title: string) {
     if (!videoId.trim()) {
-      setMsg("Apply karne ke liye Video ID daalein.");
+      setMsg("Enter a Video ID to apply this change.");
       return;
     }
     try {
@@ -733,9 +659,9 @@ function YtThumbnailABTab() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setMsg("Approval queue mein bhej diya.");
+      setMsg("Sent to the approval queue.");
     } catch (e: unknown) {
-      setMsg(errorMessage(e, "Kuch ghalat ho gaya."));
+      setMsg(errorMessage(e, "Something went wrong."));
     }
   }
 
@@ -750,10 +676,10 @@ function YtThumbnailABTab() {
         />
         <Field label="Niche" value={profile.niche} onChange={(v) => setProfile({ ...profile, niche: v })} />
         <Field label="Topic" value={topic} onChange={setTopic} />
-        <Field label="Video ID (optional, apply karne ke liye)" value={videoId} onChange={setVideoId} />
+        <Field label="Video ID (optional, required to apply)" value={videoId} onChange={setVideoId} />
       </div>
       <div className="mt-3 flex gap-2">
-        {LANGUAGES.map((l) => (
+        {CONTENT_LANGUAGE_OPTIONS.map((l) => (
           <button
             key={l.id}
             onClick={() => setLanguage(l.id)}
@@ -770,7 +696,7 @@ function YtThumbnailABTab() {
         disabled={!topic.trim() || !profile.businessName.trim() || loading}
         className="focus-ring mt-4 w-full border-2 border-ink bg-signal py-2.5 font-medium text-ink transition hover:bg-ink hover:text-signal disabled:opacity-50"
       >
-        {loading ? "…" : "2 Variants بنائیں"}
+        {loading ? "…" : "Generate 2 variants"}
       </button>
       {error && <p className="mt-2 text-sm text-clay">{error}</p>}
       {variants && (
@@ -841,7 +767,7 @@ function YtBulkOptimizerTab() {
       if (!res.ok) throw new Error(data.error);
       setResults(data.results || []);
     } catch (e: unknown) {
-      setError(errorMessage(e, "Kuch ghalat ho gaya."));
+      setError(errorMessage(e, "Something went wrong."));
     } finally {
       setBusy(false);
     }
@@ -851,13 +777,13 @@ function YtBulkOptimizerTab() {
     <section className="border border-line bg-white/60 p-6">
       <h2 className="font-head text-lg font-semibold text-ink">Bulk Video Optimizer</h2>
       <p className="mt-1 text-sm text-ink/60">
-        Multiple videos select karein, sab ki title/description/tags ek sath generate hongi — Approval Queue mein
-        bhejein jayengi (bulk changes hamesha manual approval maangti hain).
+        Select multiple videos to generate titles, descriptions, and tags together. They will be sent to the Approval
+        Queue (bulk changes always require manual approval).
       </p>
       <div className="mt-3">
         <Field label="Niche" value={niche} onChange={setNiche} placeholder="Bus ticket booking" />
       </div>
-      {loading && <p className="mt-3 text-sm text-ink/50">Videos load ho rahi hain…</p>}
+      {loading && <p className="mt-3 text-sm text-ink/50">Loading videos…</p>}
       {error && <p className="mt-3 text-sm text-clay">{error}</p>}
       {videos.length > 0 && (
         <div className="mt-4 max-h-72 space-y-1.5 overflow-y-auto border border-line bg-white p-2">
@@ -875,13 +801,13 @@ function YtBulkOptimizerTab() {
         disabled={selected.size === 0 || !niche.trim() || busy}
         className="focus-ring mt-4 w-full border-2 border-ink bg-signal py-2.5 font-medium text-ink transition hover:bg-ink hover:text-signal disabled:opacity-50"
       >
-        {busy ? "…" : `${selected.size} Videos Optimize کریں`}
+        {busy ? "…" : `${selected.size} videos to optimize`}
       </button>
       {results.length > 0 && (
         <div className="mt-4 space-y-1">
           {results.map((r, i) => (
             <p key={i} className={`text-sm ${r.status === "queued" ? "text-ink/70" : "text-clay"}`}>
-              {r.videoId}: {r.status === "queued" ? "Queue mein bhej diya" : r.error}
+              {r.videoId}: {r.status === "queued" ? "Queued" : r.error}
             </p>
           ))}
         </div>
@@ -893,7 +819,7 @@ function YtBulkOptimizerTab() {
 function YtCommunityPostsTab() {
   const [topic, setTopic] = useState("");
   const [profile, setProfile] = useState<BusinessProfile>({ businessName: "", niche: "", audience: "", tone: "" });
-  const [language, setLanguage] = useState<Language>("ur");
+  const [language, setLanguage] = useState<Language>(DEFAULT_CONTENT_LANGUAGE);
   const [post, setPost] = useState<{ text: string; postType: string; pollOptions?: string[] } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -912,7 +838,7 @@ function YtCommunityPostsTab() {
       if (!res.ok) throw new Error(data.error);
       setPost(data.post);
     } catch (e: unknown) {
-      setError(errorMessage(e, "Kuch ghalat ho gaya."));
+      setError(errorMessage(e, "Something went wrong."));
     } finally {
       setLoading(false);
     }
@@ -922,8 +848,8 @@ function YtCommunityPostsTab() {
     <section className="border border-line bg-white/60 p-6">
       <h2 className="font-head text-lg font-semibold text-ink">Community Post Generator</h2>
       <p className="mt-1 text-sm text-ink/60">
-        ⚠️ YouTube ki koi public API nahi hai Community tab pe post karne ke liye — ye sirf text generate karega, aap
-        khud copy kar ke YouTube Studio se post karein.
+        YouTube has no public API for Community posts. This generates text only — copy it into YouTube Studio to
+        publish.
       </p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <Field
@@ -935,7 +861,7 @@ function YtCommunityPostsTab() {
         <Field label="Topic" value={topic} onChange={setTopic} />
       </div>
       <div className="mt-3 flex gap-2">
-        {LANGUAGES.map((l) => (
+        {CONTENT_LANGUAGE_OPTIONS.map((l) => (
           <button
             key={l.id}
             onClick={() => setLanguage(l.id)}
@@ -952,7 +878,7 @@ function YtCommunityPostsTab() {
         disabled={!topic.trim() || !profile.businessName.trim() || loading}
         className="focus-ring mt-4 w-full border-2 border-ink bg-signal py-2.5 font-medium text-ink transition hover:bg-ink hover:text-signal disabled:opacity-50"
       >
-        {loading ? "…" : "Post بنائیں"}
+        {loading ? "…" : "Create post"}
       </button>
       {error && <p className="mt-2 text-sm text-clay">{error}</p>}
       {post && (
@@ -993,7 +919,7 @@ function YtPerformanceAnalyticsTab() {
   return (
     <section className="border border-line bg-white/60 p-6">
       <h2 className="font-head text-lg font-semibold text-ink">Video Performance Analytics</h2>
-      {loading && <p className="mt-3 text-sm text-ink/50">Load ho raha hai…</p>}
+      {loading && <p className="mt-3 text-sm text-ink/50">Loading…</p>}
       {error && <p className="mt-3 text-sm text-clay">{error}</p>}
       {videos.length > 0 && (
         <>
@@ -1089,11 +1015,11 @@ function YtCompetitorTrackingTab() {
           disabled={!input.trim() || busy}
           className="focus-ring border-2 border-ink bg-signal px-4 py-2 text-sm font-medium text-ink transition hover:bg-ink hover:text-signal disabled:opacity-50"
         >
-          Add کریں
+          Add
         </button>
       </div>
       {error && <p className="mt-2 text-sm text-clay">{error}</p>}
-      {loading && <p className="mt-3 text-sm text-ink/50">Load ho raha hai…</p>}
+      {loading && <p className="mt-3 text-sm text-ink/50">Loading…</p>}
       {channels.length > 0 && (
         <div className="mt-4 space-y-2">
           {channels.map((c) => (
@@ -1146,7 +1072,7 @@ function YtRetentionInsightsTab() {
       if (!res.ok) throw new Error(data.error);
       setInsights(data.insights);
     } catch (e: unknown) {
-      setError(errorMessage(e, "Kuch ghalat ho gaya."));
+      setError(errorMessage(e, "Something went wrong."));
     } finally {
       setLoading(false);
     }
@@ -1156,8 +1082,8 @@ function YtRetentionInsightsTab() {
     <section className="border border-line bg-white/60 p-6">
       <h2 className="font-head text-lg font-semibold text-ink">Watch Time & Retention Insights</h2>
       <p className="mt-1 text-sm text-ink/60">
-        Ye YouTube Analytics API use karta hai (Data API v3 se alag). Agar connection Analytics read permission ke bina
-        authorize hua ho to reconnect required hai — Nexora fake watch-time data nahi dikhata.
+        Uses the YouTube Analytics API. If the connection was authorized without Analytics read permission, reconnect is
+        required. AIBISORA does not invent watch-time data.
       </p>
       <div className="mt-4 flex gap-2">
         <input
@@ -1171,7 +1097,7 @@ function YtRetentionInsightsTab() {
           disabled={!videoId.trim() || loading}
           className="focus-ring border-2 border-ink bg-signal px-4 py-2 text-sm font-medium text-ink transition hover:bg-ink hover:text-signal disabled:opacity-50"
         >
-          {loading ? "…" : "Fetch کریں"}
+          {loading ? "…" : "Fetch"}
         </button>
       </div>
       {error && <p className="mt-2 text-sm text-clay">{error}</p>}
@@ -1192,7 +1118,7 @@ function YtRetentionInsightsTab() {
 
 function FbPageSeoTab() {
   const [niche, setNiche] = useState("");
-  const [language, setLanguage] = useState<Language>("ur");
+  const [language, setLanguage] = useState<Language>(DEFAULT_CONTENT_LANGUAGE);
   const [info, setInfo] = useState<UnknownRecord | null>(null);
   const [fix, setFix] = useState<{ about: string; rationale: string } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -1216,7 +1142,7 @@ function FbPageSeoTab() {
       setInfo(data.info);
       setFix(data.fix);
     } catch (e: unknown) {
-      setError(errorMessage(e, "Kuch ghalat ho gaya."));
+      setError(errorMessage(e, "Something went wrong."));
     } finally {
       setLoading(false);
     }
@@ -1234,9 +1160,9 @@ function FbPageSeoTab() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setMsg("Page ki About info update ho gayi!");
+      setMsg("Page About info updated.");
     } catch (e: unknown) {
-      setMsg(errorMessage(e, "Kuch ghalat ho gaya."));
+      setMsg(errorMessage(e, "Something went wrong."));
     } finally {
       setApplying(false);
     }
@@ -1246,7 +1172,7 @@ function FbPageSeoTab() {
     <section className="border border-line bg-white/60 p-6">
       <h2 className="font-head text-lg font-semibold text-ink">Page & Post Discovery Optimization</h2>
       <p className="mt-1 text-sm text-ink/60">
-        Page ki current About info fetch kar ke Facebook/Google discovery ke liye behtar version generate karega.
+        Fetches the Page&apos;s current About info and generates a stronger version for Facebook and Google discovery.
       </p>
       <div className="mt-4 flex gap-2">
         <input
@@ -1260,11 +1186,11 @@ function FbPageSeoTab() {
           disabled={!niche.trim() || loading}
           className="focus-ring border-2 border-ink bg-signal px-4 py-2 text-sm font-medium text-ink transition hover:bg-ink hover:text-signal disabled:opacity-50"
         >
-          {loading ? "…" : "Fix Generate کریں"}
+          {loading ? "…" : "Generate fixes"}
         </button>
       </div>
       <div className="mt-3 flex gap-2">
-        {LANGUAGES.map((l) => (
+        {CONTENT_LANGUAGE_OPTIONS.map((l) => (
           <button
             key={l.id}
             onClick={() => setLanguage(l.id)}
@@ -1293,7 +1219,7 @@ function FbPageSeoTab() {
             disabled={applying}
             className="focus-ring border-2 border-ink bg-paper py-2.5 font-medium text-ink transition hover:bg-ink hover:text-paper disabled:opacity-50 sm:col-span-2"
           >
-            {applying ? "…" : "Page پر Apply کریں"}
+            {applying ? "…" : "Apply to page"}
           </button>
           {msg && <p className="text-sm text-ink/70 sm:col-span-2">{msg}</p>}
         </div>
@@ -1304,7 +1230,7 @@ function FbPageSeoTab() {
 
 function FbHashtagResearchTab() {
   const [niche, setNiche] = useState("");
-  const [language, setLanguage] = useState<Language>("ur");
+  const [language, setLanguage] = useState<Language>(DEFAULT_CONTENT_LANGUAGE);
   const [ideas, setIdeas] = useState<{ hashtag: string; whyRelevant: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1323,7 +1249,7 @@ function FbHashtagResearchTab() {
       if (!res.ok) throw new Error(data.error);
       setIdeas(data.hashtags || []);
     } catch (e: unknown) {
-      setError(errorMessage(e, "Kuch ghalat ho gaya."));
+      setError(errorMessage(e, "Something went wrong."));
     } finally {
       setLoading(false);
     }
@@ -1344,11 +1270,11 @@ function FbHashtagResearchTab() {
           disabled={!niche.trim() || loading}
           className="focus-ring border-2 border-ink bg-signal px-4 py-2 text-sm font-medium text-ink transition hover:bg-ink hover:text-signal disabled:opacity-50"
         >
-          {loading ? "…" : "Hashtags دیکھیں"}
+          {loading ? "…" : "Get hashtags"}
         </button>
       </div>
       <div className="mt-3 flex gap-2">
-        {LANGUAGES.map((l) => (
+        {CONTENT_LANGUAGE_OPTIONS.map((l) => (
           <button
             key={l.id}
             onClick={() => setLanguage(l.id)}
@@ -1378,7 +1304,7 @@ function FbHashtagResearchTab() {
 function FbPostABTab() {
   const [topic, setTopic] = useState("");
   const [profile, setProfile] = useState<BusinessProfile>({ businessName: "", niche: "", audience: "", tone: "" });
-  const [language, setLanguage] = useState<Language>("ur");
+  const [language, setLanguage] = useState<Language>(DEFAULT_CONTENT_LANGUAGE);
   const [variants, setVariants] = useState<{ variantA: { title: string }; variantB: { title: string } } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1398,7 +1324,7 @@ function FbPostABTab() {
       if (!res.ok) throw new Error(data.error);
       setVariants(data.variants);
     } catch (e: unknown) {
-      setError(errorMessage(e, "Kuch ghalat ho gaya."));
+      setError(errorMessage(e, "Something went wrong."));
     } finally {
       setLoading(false);
     }
@@ -1413,9 +1339,9 @@ function FbPostABTab() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setMsg(data.autoPublished ? "Auto-publish ho gaya!" : "Approval queue mein bhej diya.");
+      setMsg(data.autoPublished ? "Auto-published." : "Sent to the approval queue.");
     } catch (e: unknown) {
-      setMsg(errorMessage(e, "Kuch ghalat ho gaya."));
+      setMsg(errorMessage(e, "Something went wrong."));
     }
   }
 
@@ -1432,7 +1358,7 @@ function FbPostABTab() {
         <Field label="Topic" value={topic} onChange={setTopic} />
       </div>
       <div className="mt-3 flex gap-2">
-        {LANGUAGES.map((l) => (
+        {CONTENT_LANGUAGE_OPTIONS.map((l) => (
           <button
             key={l.id}
             onClick={() => setLanguage(l.id)}
@@ -1449,7 +1375,7 @@ function FbPostABTab() {
         disabled={!topic.trim() || !profile.businessName.trim() || loading}
         className="focus-ring mt-4 w-full border-2 border-ink bg-signal py-2.5 font-medium text-ink transition hover:bg-ink hover:text-signal disabled:opacity-50"
       >
-        {loading ? "…" : "2 Variants بنائیں"}
+        {loading ? "…" : "Generate 2 variants"}
       </button>
       {error && <p className="mt-2 text-sm text-clay">{error}</p>}
       {variants && (
@@ -1461,7 +1387,7 @@ function FbPostABTab() {
               onClick={() => sendVariant(variants.variantA.title)}
               className="focus-ring mt-2 border border-line px-3 py-1 text-xs text-ink/70 hover:border-ink"
             >
-              Send کریں
+              Send
             </button>
           </div>
           <div className="border border-line bg-white p-4">
@@ -1471,7 +1397,7 @@ function FbPostABTab() {
               onClick={() => sendVariant(variants.variantB.title)}
               className="focus-ring mt-2 border border-line px-3 py-1 text-xs text-ink/70 hover:border-ink"
             >
-              Send کریں
+              Send
             </button>
           </div>
           {msg && <p className="text-sm text-ink/70 sm:col-span-2">{msg}</p>}
@@ -1484,7 +1410,7 @@ function FbPostABTab() {
 function FbBulkSchedulerTab() {
   const [topicsText, setTopicsText] = useState("");
   const [profile, setProfile] = useState<BusinessProfile>({ businessName: "", niche: "", audience: "", tone: "" });
-  const [language, setLanguage] = useState<Language>("ur");
+  const [language, setLanguage] = useState<Language>(DEFAULT_CONTENT_LANGUAGE);
   const [busy, setBusy] = useState(false);
   const [results, setResults] = useState<UnknownRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -1508,7 +1434,7 @@ function FbBulkSchedulerTab() {
       if (!res.ok) throw new Error(data.error);
       setResults(data.results || []);
     } catch (e: unknown) {
-      setError(errorMessage(e, "Kuch ghalat ho gaya."));
+      setError(errorMessage(e, "Something went wrong."));
     } finally {
       setBusy(false);
     }
@@ -1518,8 +1444,8 @@ function FbBulkSchedulerTab() {
     <section className="border border-line bg-white/60 p-6">
       <h2 className="font-head text-lg font-semibold text-ink">Bulk Post Scheduler</h2>
       <p className="mt-1 text-sm text-ink/60">
-        Har line mein ek topic likhein (max 10) — sab ke liye posts generate ho kar Approval Queue mein chali jayengi
-        (bulk = hamesha manual approval).
+        Enter one topic per line (max 10). Posts will be generated and sent to the Approval Queue (bulk changes always
+        require manual approval).
       </p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <Field
@@ -1537,7 +1463,7 @@ function FbBulkSchedulerTab() {
         className="focus-ring mt-3 w-full border border-line bg-white px-3 py-2 text-ink placeholder:text-ink/30"
       />
       <div className="mt-3 flex gap-2">
-        {LANGUAGES.map((l) => (
+        {CONTENT_LANGUAGE_OPTIONS.map((l) => (
           <button
             key={l.id}
             onClick={() => setLanguage(l.id)}
@@ -1554,14 +1480,14 @@ function FbBulkSchedulerTab() {
         disabled={!topicsText.trim() || !profile.businessName.trim() || busy}
         className="focus-ring mt-4 w-full border-2 border-ink bg-signal py-2.5 font-medium text-ink transition hover:bg-ink hover:text-signal disabled:opacity-50"
       >
-        {busy ? "…" : "Sab Generate کریں"}
+        {busy ? "…" : "Generate all"}
       </button>
       {error && <p className="mt-2 text-sm text-clay">{error}</p>}
       {results.length > 0 && (
         <div className="mt-4 space-y-1">
           {results.map((r, i) => (
             <p key={i} className={`text-sm ${r.status === "queued" ? "text-ink/70" : "text-clay"}`}>
-              {r.topic}: {r.status === "queued" ? "Queue mein bhej diya" : r.error}
+              {r.topic}: {r.status === "queued" ? "Queued" : r.error}
             </p>
           ))}
         </div>
@@ -1573,7 +1499,7 @@ function FbBulkSchedulerTab() {
 function FbEngagementAssistantTab() {
   const [postId, setPostId] = useState("");
   const [profile, setProfile] = useState<BusinessProfile>({ businessName: "", niche: "", audience: "", tone: "" });
-  const [language] = useState<Language>("ur");
+  const [language] = useState<Language>(DEFAULT_CONTENT_LANGUAGE);
   const [comments, setComments] = useState<UnknownRecord[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -1594,7 +1520,7 @@ function FbEngagementAssistantTab() {
       if (!res.ok) throw new Error(data.error);
       setComments(data.comments || []);
     } catch (e: unknown) {
-      setError(errorMessage(e, "Kuch ghalat ho gaya."));
+      setError(errorMessage(e, "Something went wrong."));
     } finally {
       setLoading(false);
     }
@@ -1611,7 +1537,7 @@ function FbEngagementAssistantTab() {
       if (!res.ok) throw new Error(data.error);
       setDrafts({ ...drafts, [commentId]: data.reply });
     } catch (e: unknown) {
-      setError(errorMessage(e, "Kuch ghalat ho gaya."));
+      setError(errorMessage(e, "Something went wrong."));
     }
   }
 
@@ -1626,7 +1552,7 @@ function FbEngagementAssistantTab() {
       if (!res.ok) throw new Error(data.error);
       setSentIds(new Set([...sentIds, commentId]));
     } catch (e: unknown) {
-      setError(errorMessage(e, "Kuch ghalat ho gaya."));
+      setError(errorMessage(e, "Something went wrong."));
     }
   }
 
@@ -1648,7 +1574,7 @@ function FbEngagementAssistantTab() {
         disabled={!postId.trim() || loading}
         className="focus-ring mt-4 w-full border-2 border-ink bg-signal py-2.5 font-medium text-ink transition hover:bg-ink hover:text-signal disabled:opacity-50"
       >
-        {loading ? "…" : "Comments Load کریں"}
+        {loading ? "…" : "Load comments"}
       </button>
       {error && <p className="mt-2 text-sm text-clay">{error}</p>}
       {comments.length > 0 && (
@@ -1666,7 +1592,7 @@ function FbEngagementAssistantTab() {
                       onClick={() => sendReply(c.id)}
                       className="focus-ring mt-2 border border-line px-3 py-1 text-xs text-ink/70 hover:border-ink"
                     >
-                      Reply بھیجیں
+                      Send reply
                     </button>
                   ) : (
                     <p className="mt-2 text-xs text-ink/50">✓ Bhej diya</p>
@@ -1677,7 +1603,7 @@ function FbEngagementAssistantTab() {
                   onClick={() => draftReply(c.id, c.message)}
                   className="focus-ring mt-2 border border-line px-3 py-1 text-xs text-ink/70 hover:border-ink"
                 >
-                  Reply Draft کریں
+                  Draft reply
                 </button>
               )}
             </div>
@@ -1710,7 +1636,7 @@ function FbPostAnalyticsTab() {
   return (
     <section className="border border-line bg-white/60 p-6">
       <h2 className="font-head text-lg font-semibold text-ink">Post Performance Analytics</h2>
-      {loading && <p className="mt-3 text-sm text-ink/50">Load ho raha hai…</p>}
+      {loading && <p className="mt-3 text-sm text-ink/50">Loading…</p>}
       {error && <p className="mt-3 text-sm text-clay">{error}</p>}
       {pageStats && (
         <div className="mt-4">
@@ -1803,11 +1729,11 @@ function FbCompetitorTrackingTab() {
           disabled={!input.trim() || busy}
           className="focus-ring border-2 border-ink bg-signal px-4 py-2 text-sm font-medium text-ink transition hover:bg-ink hover:text-signal disabled:opacity-50"
         >
-          Add کریں
+          Add
         </button>
       </div>
       {error && <p className="mt-2 text-sm text-clay">{error}</p>}
-      {loading && <p className="mt-3 text-sm text-ink/50">Load ho raha hai…</p>}
+      {loading && <p className="mt-3 text-sm text-ink/50">Loading…</p>}
       {pages.length > 0 && (
         <div className="mt-4 space-y-2">
           {pages.map((p) => (
@@ -1849,7 +1775,7 @@ function FbAudienceInsightsTab() {
       if (!res.ok) throw new Error(data.error);
       setInsights(data.insights);
     } catch (e: unknown) {
-      setError(errorMessage(e, "Kuch ghalat ho gaya."));
+      setError(errorMessage(e, "Something went wrong."));
     } finally {
       setLoading(false);
       setFetched(true);
@@ -1860,15 +1786,15 @@ function FbAudienceInsightsTab() {
     <section className="border border-line bg-white/60 p-6">
       <h2 className="font-head text-lg font-semibold text-ink">Audience Insights</h2>
       <p className="mt-1 text-sm text-ink/60">
-        Meta ne classic Audience Insights ko kaafi restrict/deprecated kar diya hai — ye is Page ke liye jo bhi
-        demographic data abhi bhi available hai, wo dikhane ki koshish karega.
+        Meta has heavily restricted or deprecated classic Audience Insights — this will show whatever demographic data
+        is still available for this Page.
       </p>
       <button
         onClick={handleFetch}
         disabled={loading}
         className="focus-ring mt-4 w-full border-2 border-ink bg-signal py-2.5 font-medium text-ink transition hover:bg-ink hover:text-signal disabled:opacity-50"
       >
-        {loading ? "…" : "Insights Fetch کریں"}
+        {loading ? "…" : "Fetch insights"}
       </button>
       {fetched && error && <p className="mt-3 text-sm text-clay">{error}</p>}
       {insights && (
@@ -1885,132 +1811,6 @@ function FbAudienceInsightsTab() {
   );
 }
 
-function WorkspaceBar() {
-  const [workspaces, setWorkspaces] = useState<Array<{ id: string; name: string; role: string }>>([]);
-  const [selected, setSelected] = useState("");
-  const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-
-  async function load() {
-    const res = await apiFetch("/api/workspaces");
-    if (!res.ok) return;
-    const data = await res.json();
-    const list = data.workspaces || [];
-    setWorkspaces(list);
-    const saved = window.localStorage.getItem("autoseo.workspaceId");
-    const next = list.some((w: UnknownRecord) => w.id === saved) ? saved! : list[0]?.id || "";
-    setSelected(next);
-    if (next) window.localStorage.setItem("autoseo.workspaceId", next);
-  }
-
-  useEffect(
-    () =>
-      scheduleMount(() => {
-        void load().catch(() => undefined);
-      }),
-    []
-  );
-
-  async function createWorkspace() {
-    if (!name.trim()) return;
-    setBusy(true);
-    setMessage(null);
-    try {
-      const res = await apiFetch("/api/workspaces", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Workspace create nahi ho saka.");
-      window.localStorage.setItem("autoseo.workspaceId", data.workspace.id);
-      setName("");
-      setMessage("Workspace create ho gaya.");
-      await load();
-    } catch (e: unknown) {
-      setMessage(errorMessage(e, "Workspace error."));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (!workspaces.length)
-    return (
-      <div className="mt-5 border-2 border-signal bg-paper p-4">
-        <div className="text-sm font-medium text-paper">Apna pehla workspace banayein</div>
-        <p className="mt-1 text-xs text-paper/70">
-          Without a workspace, production data and publishing actions are unavailable.
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Workspace name"
-            className="border border-paper/30 bg-ink px-3 py-1.5 text-sm text-paper placeholder:text-paper/40"
-          />
-          <button
-            onClick={createWorkspace}
-            disabled={busy || !name.trim()}
-            className="border border-signal bg-signal px-3 py-1.5 text-xs font-medium text-ink disabled:opacity-40"
-          >
-            {busy ? "Creating…" : "Create workspace"}
-          </button>
-        </div>
-        {message && <span className="mt-2 block text-xs text-paper/70">{message}</span>}
-      </div>
-    );
-  return (
-    <div className="mt-5 flex flex-wrap items-center gap-2 border border-paper/20 bg-paper/5 p-3">
-      <span className="text-xs uppercase tracking-wide text-paper/60">Workspace</span>
-      <select
-        value={selected}
-        onChange={(e) => {
-          setSelected(e.target.value);
-          window.localStorage.setItem("autoseo.workspaceId", e.target.value);
-          window.location.reload();
-        }}
-        className="border border-paper/30 bg-ink px-3 py-1.5 text-sm text-paper"
-      >
-        {workspaces.map((w) => (
-          <option key={w.id} value={w.id}>
-            {w.name} · {w.role}
-          </option>
-        ))}
-      </select>
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="New workspace"
-        className="border border-paper/30 bg-ink px-3 py-1.5 text-sm text-paper placeholder:text-paper/40"
-      />
-      <button
-        onClick={createWorkspace}
-        disabled={busy || !name.trim()}
-        className="border border-signal bg-signal px-3 py-1.5 text-xs font-medium text-ink disabled:opacity-40"
-      >
-        Create
-      </button>
-      {message && <span className="text-xs text-paper/70">{message}</span>}
-    </div>
-  );
-}
-
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`focus-ring border-2 px-4 py-2 text-sm font-medium transition ${
-        active
-          ? "border-signal bg-signal text-ink"
-          : "border-paper/30 bg-transparent text-paper/80 hover:border-paper/60"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
 // ---------------------------------------------------------------------
 // Tab 1: Content Generator (Phase 1) + send-to-approval (Phase 3/4)
 // ---------------------------------------------------------------------
@@ -2023,7 +1823,7 @@ function ContentGeneratorTab() {
     tone: "",
   });
   const [channel, setChannel] = useState<Channel>("website");
-  const [language, setLanguage] = useState<Language>("ur");
+  const [language, setLanguage] = useState<Language>(DEFAULT_CONTENT_LANGUAGE);
   const [topic, setTopic] = useState("");
   const [result, setResult] = useState<GeneratedContent | null>(null);
   const [loading, setLoading] = useState(false);
@@ -2050,7 +1850,7 @@ function ContentGeneratorTab() {
       if (!res.ok) throw new Error(data.error || "Generation failed.");
       setResult(data.content);
     } catch (e: unknown) {
-      setError(errorMessage(e, "کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔"));
+      setError(errorMessage(e, "Something went wrong. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -2059,7 +1859,7 @@ function ContentGeneratorTab() {
   async function sendForApproval() {
     if (!result) return;
     if (channel === "youtube" && !videoId.trim()) {
-      setQueueMessage("YouTube ke liye Video ID daalna zaroori hai (jis video ko optimize karna hai).");
+      setQueueMessage("A Video ID is required for YouTube (the video you want to optimize).");
       return;
     }
     setQueueLoading(true);
@@ -2077,161 +1877,185 @@ function ContentGeneratorTab() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Queue mein add nahi hua.");
+      if (!res.ok) throw new Error(data.error || "Could not add to the queue.");
       setQueueMessage(
         data.queued
-          ? "Auto-publish permission on hai — draft durable queue mein chala gaya. Worker isay automatically publish karega."
-          : "Approval queue mein bhej diya — 'Publish' tab mein ja kar approve karein."
+          ? "Auto-publish is enabled — the draft was added to the durable queue. A worker will publish it automatically."
+          : "Sent to the approval queue — open the Publish tab to approve it."
       );
     } catch (e: unknown) {
-      setQueueMessage(errorMessage(e, "Kuch ghalat ho gaya."));
+      setQueueMessage(errorMessage(e, "Something went wrong."));
     } finally {
       setQueueLoading(false);
     }
   }
 
   return (
-    <>
-      <section className="border border-line bg-white/60 p-6">
-        <h2 className="font-head text-lg font-semibold text-ink">1. اپنے کاروبار کے بارے میں بتائیں</h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field
-            label="کاروبار کا نام"
-            value={profile.businessName}
-            onChange={(v) => setProfile({ ...profile, businessName: v })}
-            placeholder="مثال: Karachi Smart Travel & Tour Services"
-          />
-          <Field
-            label="شعبہ / نچ"
-            value={profile.niche}
-            onChange={(v) => setProfile({ ...profile, niche: v })}
-            placeholder="مثال: بس ٹکٹ بکنگ"
-          />
-          <Field
-            label="ٹارگٹ آڈینس"
-            value={profile.audience}
-            onChange={(v) => setProfile({ ...profile, audience: v })}
-            placeholder="مثال: پاکستان بھر کے مسافر"
-          />
-          <Field
-            label="برانڈ کا لہجہ"
-            value={profile.tone}
-            onChange={(v) => setProfile({ ...profile, tone: v })}
-            placeholder="مثال: دوستانہ اور بھروسہ مند"
-          />
-        </div>
-      </section>
-
-      <section className="mt-6 border border-line bg-white/60 p-6">
-        <h2 className="font-head text-lg font-semibold text-ink">2. چینل اور موضوع منتخب کریں</h2>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          {CHANNELS.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => {
-                setChannel(c.id);
-                setResult(null);
-                setQueueMessage(null);
-              }}
-              className={`focus-ring border px-4 py-2 text-sm transition ${
-                channel === c.id ? "border-ink bg-ink text-paper" : "border-line bg-white text-ink hover:border-ink"
-              }`}
+    <div className="space-y-6">
+      <PageHeader
+        title="Content"
+        description="Brief, generate, review, then send for approval. Content language is separate from the English product UI."
+      />
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,22rem)_minmax(0,1fr)_minmax(0,18rem)]">
+        <div className="space-y-4">
+          <Card>
+            <SectionHeader
+              title="Business / brand"
+              description="Ground generation in a real profile. Facts are not invented."
+            />
+            <div className="grid gap-3">
+              <Field
+                label="Business name"
+                value={profile.businessName}
+                onChange={(v) => setProfile({ ...profile, businessName: v })}
+                placeholder="e.g. Acme Travel Services"
+              />
+              <Field
+                label="Industry / niche"
+                value={profile.niche}
+                onChange={(v) => setProfile({ ...profile, niche: v })}
+                placeholder="e.g. bus ticket booking"
+              />
+              <Field
+                label="Audience"
+                value={profile.audience}
+                onChange={(v) => setProfile({ ...profile, audience: v })}
+                placeholder="e.g. travelers nationwide"
+              />
+              <Field
+                label="Tone"
+                value={profile.tone}
+                onChange={(v) => setProfile({ ...profile, tone: v })}
+                placeholder="e.g. friendly and trustworthy"
+              />
+            </div>
+          </Card>
+          <Card>
+            <SectionHeader title="Output" />
+            <p className="nx-label mb-2">Channel</p>
+            <div className="flex flex-col gap-2">
+              {CHANNELS.map((c) => (
+                <ChoiceChip
+                  key={c.id}
+                  selected={channel === c.id}
+                  onClick={() => {
+                    setChannel(c.id);
+                    setResult(null);
+                    setQueueMessage(null);
+                  }}
+                >
+                  <span className="font-medium">{c.label}</span>
+                  <span className="mt-0.5 block text-xs opacity-70">{c.note}</span>
+                </ChoiceChip>
+              ))}
+            </div>
+            <p className="nx-label mb-2 mt-4">Content language</p>
+            <div className="flex flex-wrap gap-2">
+              {CONTENT_LANGUAGE_OPTIONS.map((l) => (
+                <ChoiceChip key={l.id} selected={language === l.id} onClick={() => setLanguage(l.id)}>
+                  {l.label}
+                </ChoiceChip>
+              ))}
+            </div>
+            <div className="mt-4">
+              <Field label="Topic" value={topic} onChange={setTopic} placeholder="e.g. Weekend getaways under 100" />
+            </div>
+            <Button
+              variant="primary"
+              className="mt-5 w-full"
+              onClick={handleGenerate}
+              disabled={!profileReady || !topic.trim() || loading}
+              loading={loading}
             >
-              <span className="font-medium">{c.label}</span>
-              <span className="mx-2 text-xs opacity-70">{c.note}</span>
-            </button>
-          ))}
+              {loading ? "Generating…" : "Generate Content"}
+            </Button>
+            {error ? <Alert className="mt-3">{error}</Alert> : null}
+          </Card>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          {LANGUAGES.map((l) => (
-            <button
-              key={l.id}
-              onClick={() => setLanguage(l.id)}
-              className={`focus-ring border px-3 py-1.5 text-sm transition ${
-                language === l.id
-                  ? "border-signal bg-signal/20 text-ink"
-                  : "border-line bg-white text-ink hover:border-signal"
-              }`}
-            >
-              {l.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-4">
-          <Field
-            label="موضوع"
-            value={topic}
-            onChange={setTopic}
-            placeholder="مثال: کراچی سے سوات بس ٹکٹ صرف 1000 روپے میں"
-          />
-        </div>
-
-        <button
-          onClick={handleGenerate}
-          disabled={!profileReady || !topic.trim() || loading}
-          className="focus-ring mt-5 w-full border-2 border-ink bg-signal py-3 font-medium text-ink transition hover:bg-ink hover:text-signal disabled:cursor-not-allowed disabled:border-line disabled:bg-line disabled:text-ink/40"
-        >
-          {loading ? "بن رہا ہے…" : "Content بنائیں"}
-        </button>
-
-        {error && <p className="mt-3 border border-clay bg-clay/10 px-3 py-2 text-sm text-clay">{error}</p>}
-      </section>
-
-      {result && (
-        <section className="mt-6 border-2 border-ink bg-white p-6">
-          <h2 className="font-head text-lg font-semibold text-ink">Draft</h2>
-          <p className="mt-3 text-sm uppercase tracking-wide text-clay">Title</p>
-          <p className="font-head text-xl text-ink">{result.title}</p>
-
-          {result.metaDescription && (
-            <>
-              <p className="mt-4 text-sm uppercase tracking-wide text-clay">Meta Description</p>
-              <p className="text-ink">{result.metaDescription}</p>
-            </>
-          )}
-
-          <p className="mt-4 text-sm uppercase tracking-wide text-clay">Body</p>
-          <p className="whitespace-pre-wrap leading-relaxed text-ink">{result.body}</p>
-
-          {result.hashtags && result.hashtags.length > 0 && (
-            <>
-              <p className="mt-4 text-sm uppercase tracking-wide text-clay">Hashtags</p>
-              <p className="text-ink">{result.hashtags.join("  ")}</p>
-            </>
-          )}
-
-          <div className="mt-6 border-t border-line pt-4">
-            {channel === "youtube" && (
-              <div className="mb-3">
-                <Field
-                  label="Video ID (jis existing video ko optimize karna hai)"
-                  value={videoId}
-                  onChange={setVideoId}
-                  placeholder="مثال: dQw4w9WgXcQ (YouTube URL کا آخری حصہ)"
+        <div className="space-y-4">
+          {loading ? (
+            <Card aria-busy="true" aria-label="Generating content">
+              <SectionHeader title="Workspace" description="AIBISORA AI is drafting from your brief." />
+              <Skeleton className="h-8 w-2/3" />
+              <Skeleton className="mt-4 h-40 w-full" />
+            </Card>
+          ) : error && !result ? (
+            <EmptyState title="Generation failed" description={error} />
+          ) : result ? (
+            <Card>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <SectionHeader
+                  title="Generated draft"
+                  description={`${CHANNELS.find((c) => c.id === channel)?.label} · ${CONTENT_LANGUAGE_OPTIONS.find((l) => l.id === language)?.label}`}
                 />
-                <p className="mt-1 text-xs text-ink/50">
-                  YouTube API sirf existing video ki title/description/tags update kar sakti hai — nayi video upload
-                  text se nahi ho sakti.
-                </p>
+                <AiBadge />
               </div>
-            )}
-            <button
-              onClick={sendForApproval}
-              disabled={queueLoading}
-              className="focus-ring w-full border-2 border-ink bg-paper py-2.5 font-medium text-ink transition hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {queueLoading
-                ? "بھیجا جا رہا ہے…"
-                : `${CHANNELS.find((c) => c.id === channel)?.label} Publish کے لیے بھیجیں`}
-            </button>
-            {queueMessage && <p className="mt-2 text-sm text-ink/70">{queueMessage}</p>}
+              <p className="nx-label">Title</p>
+              <h3 className="nx-section-title mt-1 text-ink">{result.title}</h3>
+              {result.metaDescription ? (
+                <>
+                  <p className="nx-label mt-4">Meta description</p>
+                  <p className="mt-1 text-sm text-[var(--nx-text-secondary)]">{result.metaDescription}</p>
+                </>
+              ) : null}
+              <p className="nx-label mt-4">Body</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-ink">{result.body}</p>
+              {result.hashtags && result.hashtags.length > 0 ? (
+                <>
+                  <p className="nx-label mt-4">Hashtags</p>
+                  <p className="mt-1 text-sm text-ink">{result.hashtags.join("  ")}</p>
+                </>
+              ) : null}
+              <div className="mt-6 border-t border-line pt-4">
+                {channel === "youtube" && (
+                  <div className="mb-3">
+                    <Field
+                      label="Video ID (the existing video to optimize)"
+                      value={videoId}
+                      onChange={setVideoId}
+                      placeholder="e.g. dQw4w9WgXcQ"
+                    />
+                    <p className="mt-1 text-xs text-muted">
+                      YouTube can update title, description, and tags on an existing video. It cannot upload a new video
+                      from text.
+                    </p>
+                  </div>
+                )}
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  onClick={sendForApproval}
+                  disabled={queueLoading}
+                  loading={queueLoading}
+                >
+                  {queueLoading ? "Sending…" : "Send for approval"}
+                </Button>
+                {queueMessage ? <p className="mt-2 text-sm text-[var(--nx-text-secondary)]">{queueMessage}</p> : null}
+              </div>
+            </Card>
+          ) : (
+            <EmptyState
+              title="No draft yet"
+              description="Complete the brief, choose a channel and content language, then generate. Output stays here for review before anything is published."
+            />
+          )}
+        </div>
+        <Card className="nx-ai h-fit xl:sticky xl:top-20">
+          <div className="flex items-center gap-2">
+            <AiBadge />
+            <h3 className="nx-card-title text-ink">Guidance</h3>
           </div>
-        </section>
-      )}
-    </>
+          <p className="mt-2 text-sm text-[var(--nx-text-secondary)]">
+            Generated copy is a suggestion. Send it to Publishing to approve before it goes live. Auto-publish only runs
+            if that setting is already enabled.
+          </p>
+          <p className="mt-3 text-sm text-[var(--nx-text-secondary)]">
+            Content language affects generated output only. The AIBISORA product UI stays in English.
+          </p>
+        </Card>
+      </div>
+    </div>
   );
 }
 
@@ -2240,15 +2064,21 @@ function ContentGeneratorTab() {
 // ---------------------------------------------------------------------
 
 const SEVERITY_STYLES: Record<string, string> = {
-  high: "border-clay bg-clay/10 text-clay",
-  medium: "border-signal bg-signal/10 text-ink",
-  low: "border-line bg-white text-ink/70",
+  high: "border-[var(--nx-danger-border)] bg-[var(--nx-danger-bg)]",
+  medium: "border-[var(--nx-warning-border)] bg-[var(--nx-warning-bg)]",
+  low: "border-line bg-elevated",
 };
 
 const SEVERITY_LABEL: Record<string, string> = {
-  high: "زیادہ اہم",
-  medium: "درمیانہ",
-  low: "معمولی",
+  high: "Critical",
+  medium: "High",
+  low: "Low",
+};
+
+const SEVERITY_TONE: Record<string, "danger" | "warning" | "neutral"> = {
+  high: "danger",
+  medium: "warning",
+  low: "neutral",
 };
 
 function SeoAnalyzerTab() {
@@ -2282,7 +2112,7 @@ function SeoAnalyzerTab() {
       setCrawl(data.crawl);
       setAnalysis(data.analysis);
     } catch (e: unknown) {
-      setError(errorMessage(e, "کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔"));
+      setError(errorMessage(e, "Something went wrong. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -2303,7 +2133,7 @@ function SeoAnalyzerTab() {
       if (!res.ok) throw new Error(data.error);
       setFixes(data.fixes);
     } catch (e: unknown) {
-      setFixesError(errorMessage(e, "Fixes generate nahi ho sakin."));
+      setFixesError(errorMessage(e, "Could not generate fixes."));
     } finally {
       setFixesLoading(false);
     }
@@ -2332,122 +2162,188 @@ function SeoAnalyzerTab() {
       if (!res.ok) throw new Error(data.error);
       setApplyMessage(
         data.queued
-          ? "Auto-publish permission on hai — SEO fix durable queue mein chala gaya. Worker isay automatically apply karega."
-          : "Fix approval queue mein bhej diya — 'Publish' tab mein ja kar approve karein."
+          ? "Auto-publish is enabled — the SEO fix was added to the durable queue. A worker will apply it automatically."
+          : "The fix was sent to the approval queue — open the Publish tab to approve it."
       );
     } catch (e: unknown) {
-      setApplyMessage(errorMessage(e, "Kuch ghalat ho gaya."));
+      setApplyMessage(errorMessage(e, "Something went wrong."));
     } finally {
       setApplyLoading(false);
     }
   }
 
+  const issueCounts = analysis
+    ? {
+        high: analysis.issues.filter((issue) => issue.severity === "high").length,
+        medium: analysis.issues.filter((issue) => issue.severity === "medium").length,
+        low: analysis.issues.filter((issue) => issue.severity === "low").length,
+      }
+    : { high: 0, medium: 0, low: 0 };
+
   return (
-    <>
-      <section className="border border-line bg-white/60 p-6">
-        <h2 className="font-head text-lg font-semibold text-ink">ویب سائٹ کا URL درج کریں</h2>
-        <div className="mt-4 flex gap-2">
-          <input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="مثال: kstts.com"
-            className="focus-ring flex-1 border border-line bg-white px-3 py-2 text-ink placeholder:text-ink/30"
-          />
-          <button
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow={crawl?.url}
+        title="SEO"
+        description="Audit a page, review prioritized issues, then generate AI suggestions. Applying changes still requires approval unless auto-publish is already enabled."
+      />
+      <Card>
+        <SectionHeader title="Website" description="Analyze a public URL. Scoring logic is unchanged." />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1">
+            <Input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="e.g. example.com"
+              aria-label="Website URL"
+            />
+          </div>
+          <Button
+            variant="primary"
+            className="w-full shrink-0 sm:w-auto"
             onClick={handleAnalyze}
             disabled={!url.trim() || loading}
-            className="focus-ring border-2 border-ink bg-signal px-5 py-2 font-medium text-ink transition hover:bg-ink hover:text-signal disabled:cursor-not-allowed disabled:border-line disabled:bg-line disabled:text-ink/40"
+            loading={loading}
           >
-            {loading ? "چیک ہو رہا ہے…" : "Analyze کریں"}
-          </button>
+            {loading ? "Checking…" : "Run SEO Audit"}
+          </Button>
         </div>
-        {error && <p className="mt-3 border border-clay bg-clay/10 px-3 py-2 text-sm text-clay">{error}</p>}
-      </section>
+        {error ? (
+          <Alert className="mt-3">
+            SEO analysis couldn't be completed. {error}{" "}
+            <button type="button" className="underline" onClick={handleAnalyze}>
+              Retry
+            </button>
+          </Alert>
+        ) : null}
+      </Card>
 
-      {analysis && (
-        <section className="mt-6 border-2 border-ink bg-white p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="font-head text-lg font-semibold text-ink">SEO Score</h2>
-            <span className="font-head text-3xl text-signal" dir="ltr">
-              {analysis.score}/100
-            </span>
-          </div>
-          <p className="mt-2 text-ink/80">{analysis.summary}</p>
+      {loading ? (
+        <div className="space-y-4" aria-busy="true" aria-label="Running SEO audit">
+          <Skeleton className="h-32" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-40" />
+        </div>
+      ) : null}
 
-          <div className="mt-5 space-y-3">
-            {analysis.issues.map((issue, i) => (
-              <div key={i} className={`border p-3 ${SEVERITY_STYLES[issue.severity] || SEVERITY_STYLES.low}`}>
-                <p className="text-xs font-medium uppercase tracking-wide">
-                  {SEVERITY_LABEL[issue.severity] || issue.severity}
-                </p>
-                <p className="mt-1 font-medium text-ink">{issue.issue}</p>
-                <p className="mt-1 text-sm text-ink/80">{issue.fix}</p>
+      {!loading && !analysis && !error ? (
+        <EmptyState
+          title="Run your first SEO audit"
+          description="Enter a website URL to score on-page health and list prioritized issues. AIBISORA does not invent sample findings."
+        />
+      ) : null}
+
+      {analysis ? (
+        <>
+          <Card>
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <ScoreMark value={analysis.score} label="SEO health" />
+              <p className="max-w-xl text-sm text-[var(--nx-text-secondary)]">{analysis.summary}</p>
+            </div>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Badge tone="danger">{issueCounts.high} critical</Badge>
+              <Badge tone="warning">{issueCounts.medium} high</Badge>
+              <Badge tone="neutral">{issueCounts.low} low</Badge>
+              {analysis.issues.length === 0 ? <Badge tone="success">No detected issues</Badge> : null}
+            </div>
+          </Card>
+
+          <div>
+            <SectionHeader title="Priority issues" description="Severity is labeled in text as well as color." />
+            {analysis.issues.length ? (
+              <div className="space-y-3">
+                {analysis.issues.map((issue, i) => (
+                  <article
+                    key={i}
+                    className={`rounded-[var(--nx-radius-md)] border p-4 ${SEVERITY_STYLES[issue.severity] || SEVERITY_STYLES.low}`}
+                  >
+                    <Badge tone={SEVERITY_TONE[issue.severity] || "neutral"}>
+                      {SEVERITY_LABEL[issue.severity] || issue.severity}
+                    </Badge>
+                    <h3 className="mt-2 text-sm font-medium text-ink">{issue.issue}</h3>
+                    <p className="mt-1 text-sm text-[var(--nx-text-secondary)]">
+                      <span className="font-medium text-ink">Recommended next step. </span>
+                      {issue.fix}
+                    </p>
+                  </article>
+                ))}
               </div>
-            ))}
+            ) : (
+              <EmptyState
+                title="Your current audit has no detected issues."
+                description="You can still generate AI title and meta suggestions for review."
+              />
+            )}
           </div>
 
-          <div className="mt-6 border-t border-line pt-4">
-            <button
+          <Card className="nx-ai">
+            <div className="flex flex-wrap items-center gap-2">
+              <AiBadge />
+              <h2 className="nx-card-title text-ink">AI suggestions</h2>
+            </div>
+            <p className="mt-2 text-sm text-[var(--nx-text-secondary)]">
+              Suggestions are not applied automatically. Use “Review AI suggestion”, then send for approval.
+            </p>
+            <Button
+              variant="secondary"
+              className="mt-4"
               onClick={handleGenerateFixes}
               disabled={fixesLoading}
-              className="focus-ring w-full border-2 border-ink bg-paper py-2.5 font-medium text-ink transition hover:bg-ink hover:text-paper disabled:opacity-50"
+              loading={fixesLoading}
             >
-              {fixesLoading ? "بن رہا ہے…" : "Fixes Generate کریں"}
-            </button>
-            {fixesError && <p className="mt-2 text-sm text-clay">{fixesError}</p>}
-          </div>
+              {fixesLoading ? "Generating…" : fixes ? "Review AI suggestion" : "Fix with AI"}
+            </Button>
+            {fixesError ? <Alert className="mt-3">{fixesError}</Alert> : null}
 
-          {fixes && (
-            <div className="mt-4 border border-ink bg-paper p-4">
-              <p className="text-sm uppercase tracking-wide text-clay">Corrected Title</p>
-              <p className="font-head text-lg text-ink">{fixes.title}</p>
+            {fixes ? (
+              <div className="mt-5 space-y-3 border-t border-[var(--nx-ai-border)] pt-4">
+                <p className="nx-label">Corrected title</p>
+                <p className="text-sm font-medium text-ink">{fixes.title}</p>
+                <p className="nx-label">Corrected meta description</p>
+                <p className="text-sm text-ink">{fixes.metaDescription}</p>
+                {fixes.suggestedHeadings.length > 0 ? (
+                  <>
+                    <p className="nx-label">Suggested H2 headings</p>
+                    <ul className="list-inside list-disc text-sm text-ink">
+                      {fixes.suggestedHeadings.map((h, i) => (
+                        <li key={i}>{h}</li>
+                      ))}
+                    </ul>
+                  </>
+                ) : null}
+                <p className="nx-label">Schema markup (JSON-LD)</p>
+                <pre className="overflow-x-auto rounded-[var(--nx-radius-sm)] bg-elevated p-3 text-xs text-[var(--nx-text-secondary)]">
+                  {fixes.schemaJsonLd}
+                </pre>
+                <p className="text-sm text-[var(--nx-text-secondary)]">{fixes.rationale}</p>
+                <Button
+                  variant="primary"
+                  onClick={handleSendFixForApproval}
+                  disabled={applyLoading}
+                  loading={applyLoading}
+                >
+                  {applyLoading ? "Sending…" : "Apply after approval"}
+                </Button>
+                {applyMessage ? <p className="text-sm text-[var(--nx-text-secondary)]">{applyMessage}</p> : null}
+                <p className="text-xs text-muted">
+                  Custom sites: title, meta, headings, and schema can be applied if the receiver supports them.
+                  WordPress: only title and meta are applied — copy schema and headings manually.
+                </p>
+              </div>
+            ) : null}
+          </Card>
 
-              <p className="mt-3 text-sm uppercase tracking-wide text-clay">Corrected Meta Description</p>
-              <p className="text-ink">{fixes.metaDescription}</p>
-
-              {fixes.suggestedHeadings.length > 0 && (
-                <>
-                  <p className="mt-3 text-sm uppercase tracking-wide text-clay">Suggested H2 Headings</p>
-                  <ul className="list-inside list-disc text-ink">
-                    {fixes.suggestedHeadings.map((h, i) => (
-                      <li key={i}>{h}</li>
-                    ))}
-                  </ul>
-                </>
-              )}
-
-              <p className="mt-3 text-sm uppercase tracking-wide text-clay">Schema Markup (JSON-LD)</p>
-              <pre className="mt-1 overflow-x-auto bg-white p-3 text-xs text-ink/80">{fixes.schemaJsonLd}</pre>
-
-              <p className="mt-3 text-sm text-ink/60">{fixes.rationale}</p>
-
-              <button
-                onClick={handleSendFixForApproval}
-                disabled={applyLoading}
-                className="focus-ring mt-4 w-full border-2 border-ink bg-signal py-2.5 font-medium text-ink transition hover:bg-ink hover:text-signal disabled:opacity-50"
-              >
-                {applyLoading ? "بھیجا جا رہا ہے…" : "Website پر Fix Apply کرنے کے لیے بھیجیں"}
-              </button>
-              {applyMessage && <p className="mt-2 text-sm text-ink/70">{applyMessage}</p>}
-              <p className="mt-2 text-xs text-ink/50">
-                Custom sites: title + meta + headings + schema سب apply ہو سکتے ہیں (agar receiver endpoint support
-                kare). WordPress: sirf title + meta apply hote hain — schema/headings yahan se copy kar ke manually
-                daalne honge.
-              </p>
-            </div>
-          )}
-
-          {crawl && (
-            <details className="mt-5 border-t border-line pt-3">
-              <summary className="cursor-pointer text-sm text-ink/60">Raw crawl data دیکھیں</summary>
-              <pre className="mt-2 overflow-x-auto bg-paper p-3 text-xs text-ink/70">
+          {crawl ? (
+            <details className="text-sm text-muted">
+              <summary className="cursor-pointer">View crawl details</summary>
+              <pre className="mt-2 overflow-x-auto rounded-[var(--nx-radius-sm)] bg-elevated p-3 text-xs">
                 {JSON.stringify(crawl, null, 2)}
               </pre>
             </details>
-          )}
-        </section>
-      )}
-    </>
+          ) : null}
+        </>
+      ) : null}
+    </div>
   );
 }
 
@@ -2471,19 +2367,19 @@ interface QueueDraft {
 }
 
 const STATUS_LABEL: Record<QueueDraft["status"], string> = {
-  pending: "منظوری کا منتظر",
-  approved: "منظور شدہ",
-  published: "شائع ہو گیا",
-  rejected: "مسترد",
-  failed: "ناکام",
+  pending: "Pending approval",
+  approved: "Approved",
+  published: "Published",
+  rejected: "Rejected",
+  failed: "Failed",
 };
 
 const STATUS_STYLE: Record<QueueDraft["status"], string> = {
-  pending: "border-signal bg-signal/10 text-ink",
-  approved: "border-line bg-white text-ink/70",
-  published: "border-ink bg-ink/5 text-ink",
-  rejected: "border-line bg-white text-ink/40",
-  failed: "border-clay bg-clay/10 text-clay",
+  pending: "border-[var(--nx-warning-border)] bg-[var(--nx-warning-bg)] text-warning",
+  approved: "border-[var(--nx-success-border)] bg-[var(--nx-success-bg)] text-success",
+  published: "border-[var(--nx-success-border)] bg-[var(--nx-success-bg)] text-success",
+  rejected: "border-[var(--nx-danger-border)] bg-[var(--nx-danger-bg)] text-danger",
+  failed: "border-[var(--nx-danger-border)] bg-[var(--nx-danger-bg)] text-danger",
 };
 
 const CHANNEL_LABEL: Record<QueueDraft["channel"], string> = {
@@ -2507,7 +2403,7 @@ function PermissionToggle({
           value === "suggest" ? "border-ink bg-ink text-paper" : "border-line bg-white text-ink/70 hover:border-ink"
         }`}
       >
-        Suggest only (منظوری چاہیے)
+        Suggest only (approval required)
       </button>
       <button
         onClick={() => onChange("auto")}
@@ -2515,7 +2411,7 @@ function PermissionToggle({
           value === "auto" ? "border-signal bg-signal text-ink" : "border-line bg-white text-ink/70 hover:border-signal"
         }`}
       >
-        Auto-publish (بغیر منظوری)
+        Auto-publish (no approval)
       </button>
     </div>
   );
@@ -2641,7 +2537,7 @@ function PublishTab() {
       setWebsiteMsg(data.message);
     } catch (e: unknown) {
       setWebsiteConnected(false);
-      setWebsiteMsg(errorMessage(e, "Connect nahi ho saka."));
+      setWebsiteMsg(errorMessage(e, "Could not connect."));
     } finally {
       setWebsiteBusy(false);
     }
@@ -2662,7 +2558,7 @@ function PublishTab() {
       setYtMsg(data.message);
     } catch (e: unknown) {
       setYtConnected(false);
-      setYtMsg(errorMessage(e, "Connect nahi ho saka."));
+      setYtMsg(errorMessage(e, "Could not connect."));
     } finally {
       setYtBusy(false);
     }
@@ -2688,7 +2584,7 @@ function PublishTab() {
       setFbMsg(data.message);
     } catch (e: unknown) {
       setFbConnected(false);
-      setFbMsg(errorMessage(e, "Connect nahi ho saka."));
+      setFbMsg(errorMessage(e, "Could not connect."));
     } finally {
       setFbBusy(false);
     }
@@ -2720,7 +2616,7 @@ function PublishTab() {
               websitePlatformType === "custom" ? "border-ink bg-ink text-paper" : "border-line bg-white text-ink"
             }`}
           >
-            Custom Site (Next.js جیسی)
+            Custom site (for example Next.js)
           </button>
           <button
             onClick={() => setWebsitePlatformType("wordpress")}
@@ -2746,16 +2642,16 @@ function PublishTab() {
               label="Webhook URL"
               value={webhookUrl}
               onChange={setWebhookUrl}
-              placeholder="https://kstts.com/api/autoseo-publish"
+              placeholder="https://example.com/api/aibisora-publish"
             />
             <SecretField label="API Key" value={apiKey} onChange={setApiKey} />
           </div>
         ) : websitePlatformType === "shopify" ? (
           <>
             <p className="mt-3 text-sm text-ink/60">
-              Shopify Admin → Settings → Apps and sales channels → Develop apps → ایک نیا app بنائیں، Admin API میں
-              "write_content" scope on کریں، install کریں، اور Admin API access token یہاں پیسٹ کریں — کوئی کوڈ نہیں
-              لکھنا۔
+              Shopify Admin → Settings → Apps and sales channels → Develop apps → create a new app. In Admin API, enable
+              the &quot;write_content&quot; scope, install it, and paste the Admin API access token here — no code
+              required.
             </p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <Field
@@ -2784,19 +2680,19 @@ function PublishTab() {
           disabled={websiteBusy}
           className="focus-ring mt-4 border-2 border-ink bg-signal px-5 py-2 text-sm font-medium text-ink transition hover:bg-ink hover:text-signal disabled:opacity-50"
         >
-          {websiteBusy ? "Connect ہو رہا ہے…" : "Connect / Update کریں"}
+          {websiteBusy ? "Connecting…" : "Connect / Update"}
         </button>
         {websiteMsg && <p className={`mt-2 text-sm ${websiteConnected ? "text-ink/70" : "text-clay"}`}>{websiteMsg}</p>}
-        {websiteConnected && !websiteMsg && <p className="mt-2 text-sm text-ink/70">✓ Connected hai.</p>}
+        {websiteConnected && !websiteMsg && <p className="mt-2 text-sm text-ink/70">✓ Connected.</p>}
       </section>
 
       {/* YouTube connection */}
       <section className="mt-6 border border-line bg-white/60 p-6">
         <h2 className="font-head text-lg font-semibold text-ink">YouTube</h2>
         <p className="mt-1 text-sm text-ink/60">
-          Connect YouTube with the in-app Google OAuth button. Nexora requests YouTube Data API access (update metadata
-          on existing videos) and YouTube Analytics read access (watch time and retention). Existing connections created
-          before Analytics access was added must reconnect. Setup notes:{" "}
+          Connect YouTube with the in-app Google OAuth button. AIBISORA requests YouTube Data API access (update
+          metadata on existing videos) and YouTube Analytics read access (watch time and retention). Existing
+          connections created before Analytics access was added must reconnect. Setup notes:{" "}
           <code className="bg-paper px-1">docs/INTEGRATIONS.md</code>.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -2805,7 +2701,7 @@ function PublishTab() {
               const r = await apiFetch("/api/oauth/google-youtube");
               const d = await r.json();
               if (r.ok && d.url) window.location.href = d.url;
-              else setYtMsg(d.error || "OAuth start nahi ho saka.");
+              else setYtMsg(d.error || "Could not start OAuth.");
             }}
             className="focus-ring border-2 border-ink bg-signal px-5 py-2 text-sm font-medium text-ink"
           >
@@ -2826,18 +2722,18 @@ function PublishTab() {
           disabled={!ytAccessToken || ytBusy}
           className="focus-ring mt-4 border-2 border-ink bg-signal px-5 py-2 text-sm font-medium text-ink transition hover:bg-ink hover:text-signal disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {ytBusy ? "Connect ہو رہا ہے…" : "Connect / Update کریں"}
+          {ytBusy ? "Connecting…" : "Connect / Update"}
         </button>
         {ytMsg && <p className={`mt-2 text-sm ${ytConnected ? "text-ink/70" : "text-clay"}`}>{ytMsg}</p>}
-        {ytConnected && !ytMsg && <p className="mt-2 text-sm text-ink/70">✓ Connected hai.</p>}
+        {ytConnected && !ytMsg && <p className="mt-2 text-sm text-ink/70">✓ Connected.</p>}
       </section>
 
       {/* Facebook connection */}
       <section className="mt-6 border border-line bg-white/60 p-6">
         <h2 className="font-head text-lg font-semibold text-ink">Facebook</h2>
         <p className="mt-1 text-sm text-ink/60">
-          Page Access Token chahiye hoga (pages_manage_posts permission). Meta for Developers app se milta hai — details{" "}
-          <code className="bg-paper px-1">docs/INTEGRATIONS.md</code> mein hain.
+          A Page Access Token with the pages_manage_posts permission is required. You can create one in a Meta for
+          Developers app — see <code className="bg-paper px-1">docs/INTEGRATIONS.md</code>.
         </p>
         <div className="mt-3">
           <button
@@ -2845,14 +2741,14 @@ function PublishTab() {
               const r = await apiFetch("/api/oauth/facebook");
               const d = await r.json();
               if (r.ok && d.url) window.location.href = d.url;
-              else setFbMsg(d.error || "OAuth start nahi ho saka.");
+              else setFbMsg(d.error || "Could not start OAuth.");
             }}
             className="focus-ring border-2 border-ink bg-signal px-5 py-2 text-sm font-medium text-ink"
           >
             Connect with Facebook OAuth
           </button>
           <p className="mt-2 text-xs text-ink/50">
-            OAuth pehli available Page ko connect karega. Ya legacy Page ID/token manually use karein.
+            OAuth connects the first available Page (FIRST_PAGE_ONLY). Or use a legacy Page ID and token manually.
           </p>
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -2865,24 +2761,24 @@ function PublishTab() {
           disabled={!fbPageId || !fbPageToken || fbBusy}
           className="focus-ring mt-4 border-2 border-ink bg-signal px-5 py-2 text-sm font-medium text-ink transition hover:bg-ink hover:text-signal disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {fbBusy ? "Connect ہو رہا ہے…" : "Connect / Update کریں"}
+          {fbBusy ? "Connecting…" : "Connect / Update"}
         </button>
         {fbMsg && <p className={`mt-2 text-sm ${fbConnected ? "text-ink/70" : "text-clay"}`}>{fbMsg}</p>}
-        {fbConnected && !fbMsg && <p className="mt-2 text-sm text-ink/70">✓ Connected hai.</p>}
+        {fbConnected && !fbMsg && <p className="mt-2 text-sm text-ink/70">✓ Connected.</p>}
       </section>
 
       {/* Google Search Console connection */}
       <section className="mt-6 border border-line bg-white/60 p-6">
         <h2 className="font-head text-lg font-semibold text-ink">Google Search Console</h2>
         <p className="mt-1 text-sm text-ink/60">
-          Organic clicks, impressions, CTR aur average position ke liye read-only Google OAuth connection.
+          A read-only Google OAuth connection for organic clicks, impressions, CTR, and average position.
         </p>
         <button
           onClick={async () => {
             const r = await apiFetch("/api/oauth/google-search-console");
             const d = await r.json();
             if (r.ok && d.url) window.location.href = d.url;
-            else setGscMsg(d.error || "OAuth start nahi ho saka.");
+            else setGscMsg(d.error || "Could not start OAuth.");
           }}
           className="focus-ring mt-3 border-2 border-ink bg-signal px-5 py-2 text-sm font-medium text-ink"
         >
@@ -2895,12 +2791,12 @@ function PublishTab() {
       <section className="mt-6 border border-line bg-white/60 p-6">
         <h2 className="font-head text-lg font-semibold text-ink">Approval Queue</h2>
         <p className="mt-1 text-sm text-ink/60">
-          "Suggest only" mode wale channels ka content yahan manzoori ka intezar karta hai. "Auto-publish" wale channels
-          turant publish ho jate hain (yahan sirf log dikhega).
+          Content for channels in &quot;Suggest only&quot; mode waits here for approval. Channels with auto-publish
+          enabled publish immediately (this list shows a log only).
         </p>
 
         {drafts.length === 0 ? (
-          <p className="mt-4 text-sm text-ink/50">Abhi koi draft queue mein nahi hai.</p>
+          <p className="mt-4 text-sm text-ink/50">No drafts are in the queue yet.</p>
         ) : (
           <div className="mt-4 space-y-3">
             {drafts.map((d) => (
@@ -2934,7 +2830,7 @@ function PublishTab() {
                     rel="noreferrer"
                     className="mt-2 inline-block text-sm text-clay underline"
                   >
-                    Live دیکھیں →
+                    View live →
                   </a>
                 )}
 
@@ -2947,14 +2843,14 @@ function PublishTab() {
                       disabled={actingOn === d.id}
                       className="focus-ring border-2 border-ink bg-signal px-4 py-1.5 text-sm font-medium text-ink transition hover:bg-ink hover:text-signal disabled:opacity-50"
                     >
-                      {actingOn === d.id ? "…" : "Approve اور Publish کریں"}
+                      {actingOn === d.id ? "…" : "Approve and publish"}
                     </button>
                     <button
                       onClick={() => handleAction(d.id, "reject")}
                       disabled={actingOn === d.id}
                       className="focus-ring border border-line bg-white px-4 py-1.5 text-sm text-ink/70 transition hover:border-clay hover:text-clay disabled:opacity-50"
                     >
-                      Reject کریں
+                      Reject
                     </button>
                   </div>
                 )}
@@ -3063,7 +2959,7 @@ function KeywordResearchTab() {
       if (!r.ok) throw new Error(d.error || "Keyword research failed.");
       setSelected(d.project);
       setOpportunities(d.opportunities || []);
-      setMessage(`${d.opportunities?.length || 0} keyword opportunities generate ho gayi hain.`);
+      setMessage(`${d.opportunities?.length || 0} keyword opportunities generated.`);
       await loadProjects();
     } catch (e: unknown) {
       setMessage(errorMessage(e, "Keyword research error."));
@@ -3085,14 +2981,14 @@ function KeywordResearchTab() {
       <section className="border border-line bg-white/60 p-6">
         <h2 className="font-head text-lg font-semibold text-ink">Advanced Keyword Research</h2>
         <p className="mt-2 text-sm text-ink/60">
-          Seed keyword se related, question, modifier, page aur optional Search Console queries discover karein.
-          Opportunity score deterministic signals par based hai; fake search-volume numbers generate nahi kiye jate.
+          Discover related, question, modifier, page, and optional Search Console queries from a seed keyword.
+          Opportunity score is based on deterministic signals; fake search-volume numbers are not generated.
         </p>
         <div className="mt-5 grid gap-3">
           <input
             value={seedKeyword}
             onChange={(e) => setSeedKeyword(e.target.value)}
-            placeholder="Seed keyword — e.g. bus booking Karachi"
+            placeholder="Seed keyword — e.g. bus ticket booking"
             className="border border-line bg-white px-3 py-2 text-sm"
           />
           <input
@@ -3130,7 +3026,7 @@ function KeywordResearchTab() {
               <span className="ml-2 text-xs text-ink/50">{p.seedKeyword}</span>
             </button>
           ))}
-          {!projects.length && <p className="text-sm text-ink/50">Abhi koi keyword research project nahi hai.</p>}
+          {!projects.length && <p className="text-sm text-ink/50">No keyword research projects yet.</p>}
         </div>
       </section>
       {selected && (
@@ -3221,7 +3117,7 @@ function CompetitorIntelligenceTab() {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "Competitor analysis failed.");
       setSelected(d.project);
-      setMessage("Competitor analysis complete ho gaya.");
+      setMessage("Competitor analysis complete.");
     } catch (e: unknown) {
       setMessage(errorMessage(e, "Competitor analysis error."));
     } finally {
@@ -3235,8 +3131,8 @@ function CompetitorIntelligenceTab() {
       <section className="border border-line bg-white/60 p-6">
         <h2 className="font-head text-lg font-semibold">Competitor Intelligence</h2>
         <p className="mt-2 text-sm text-ink/60">
-          Target website ko public competitor sites ke against compare karein: keyword gaps, content gaps aur technical
-          SEO opportunities. Analysis bounded aur SSRF-safe public crawling par based hai.
+          Compare the target website against public competitor sites: keyword gaps, content gaps, and technical SEO
+          opportunities. Analysis is based on bounded, SSRF-safe public crawling.
         </p>
         <div className="mt-5 grid gap-3">
           <input
@@ -3340,7 +3236,7 @@ function CompetitorIntelligenceTab() {
                     )}
                   </div>
                 ))}
-                {!list.length && <p className="text-sm text-ink/50">Is category mein koi gap nahi mila.</p>}
+                {!list.length && <p className="text-sm text-ink/50">No gaps found in this category.</p>}
               </div>
             </div>
           ))}
@@ -3389,7 +3285,7 @@ function ContentStrategyTab() {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "Strategy generation failed.");
       setSelected(d.project);
-      setMessage("Content strategy complete ho gayi.");
+      setMessage("Content strategy complete.");
       await load();
     } catch (e: unknown) {
       setMessage(errorMessage(e, "Content strategy error."));
@@ -3407,8 +3303,8 @@ function ContentStrategyTab() {
       <section className="border border-line bg-white/60 p-6">
         <h2 className="font-head text-lg font-semibold">Topic & Content Strategy</h2>
         <p className="mt-2 text-sm text-ink/60">
-          V23 keyword opportunities ko structured topic clusters, pillar pages aur supporting content plan mein convert
-          karein. Optional V24 competitor gaps priority ko reinforce karte hain.
+          Convert V23 keyword opportunities into structured topic clusters, pillar pages, and a supporting content plan.
+          Optional V24 competitor gaps reinforce priority.
         </p>
         <div className="mt-5 grid gap-3">
           <select
@@ -3466,7 +3362,7 @@ function ContentStrategyTab() {
               </span>
             </button>
           ))}
-          {!projects.length && <p className="text-sm text-ink/50">Abhi koi content strategy project nahi hai.</p>}
+          {!projects.length && <p className="text-sm text-ink/50">No content strategy projects yet.</p>}
         </div>
       </section>
       {selected && (
@@ -3594,7 +3490,7 @@ function ContentStudioTab() {
       setProjectId(d.project.id);
       setAssets([]);
       await load();
-      setMessage("Studio project ready hai.");
+      setMessage("Studio project is ready.");
     } catch (e: unknown) {
       setMessage(errorMessage(e, "Project error."));
     } finally {
@@ -3603,11 +3499,11 @@ function ContentStudioTab() {
   }
   async function generate() {
     if (!projectId) {
-      setMessage("Pehle Studio project create/select karein.");
+      setMessage("Create or select a Studio project first.");
       return;
     }
     if (!item) {
-      setMessage("Content Strategy se ek content item select karein.");
+      setMessage("Select a content item from Content Strategy.");
       return;
     }
     setBusy(true);
@@ -3636,7 +3532,7 @@ function ContentStudioTab() {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "Generation failed.");
       setAssets((old) => [d.asset, ...old]);
-      setMessage("AI content generate ho gaya.");
+      setMessage("AI content generated.");
     } catch (e: unknown) {
       setMessage(errorMessage(e, "Generation error."));
     } finally {
@@ -3660,7 +3556,7 @@ function ContentStudioTab() {
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "Queue failed.");
-      setMessage("Content approval queue mein bhej diya gaya.");
+      setMessage("Content sent to the approval queue.");
     } catch (e: unknown) {
       setMessage(errorMessage(e, "Queue error."));
     } finally {
@@ -3674,8 +3570,8 @@ function ContentStudioTab() {
       <section className="border border-line bg-white/60 p-6">
         <h2 className="font-head text-lg font-semibold">AI Content Production Studio</h2>
         <p className="mt-2 text-sm text-ink/60">
-          V25 strategy ko production-ready content mein convert karein. AI factual claims invent nahi karega; missing
-          facts ko flag karega.
+          Convert a V25 strategy into production-ready content. The AI will not invent factual claims; it will flag
+          missing facts.
         </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <select
@@ -3751,7 +3647,7 @@ function ContentStudioTab() {
             onChange={(e) => setLanguage(e.target.value as Language)}
             className="border border-line bg-white px-3 py-2 text-sm"
           >
-            {LANGUAGES.map((l) => (
+            {CONTENT_LANGUAGE_OPTIONS.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.label}
               </option>
@@ -3829,7 +3725,7 @@ function ContentStudioTab() {
             </div>
           ))}
           {!assets.length && (
-            <p className="border border-line bg-white/60 p-5 text-sm text-ink/50">Abhi koi generated asset nahi hai.</p>
+            <p className="border border-line bg-white/60 p-5 text-sm text-ink/50">No generated assets yet.</p>
           )}
         </div>
       </section>
@@ -3870,7 +3766,7 @@ function ContentQualityTab() {
   async function evaluate() {
     const asset = assets.find((a) => a.id === assetId);
     if (!asset?.result) {
-      setMessage("Generated asset select karein.");
+      setMessage("Select a generated asset.");
       return;
     }
     setBusy(true);
@@ -3897,7 +3793,7 @@ function ContentQualityTab() {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "Quality evaluation failed.");
       setReport(d.report);
-      setMessage("Quality aur factual-risk review complete ho gaya.");
+      setMessage("Quality and factual-risk review complete.");
     } catch (e: unknown) {
       setMessage(errorMessage(e, "Quality evaluation error."));
     } finally {
@@ -3909,8 +3805,8 @@ function ContentQualityTab() {
       <section className="border border-line bg-white/60 p-6">
         <h2 className="font-head text-lg font-semibold">Content Quality & Fact Intelligence</h2>
         <p className="mt-2 text-sm text-ink/60">
-          V26 ke AI content ko publish karne se pehle SEO, readability, structure, originality aur factual-risk signals
-          ke against check karein. Yeh truth verifier nahi — risk detector hai.
+          Check V26 AI content against SEO, readability, structure, originality, and factual-risk signals before
+          publishing. This is a risk detector, not a truth verifier.
         </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <select
@@ -4040,7 +3936,7 @@ function TechnicalSeoTab() {
   );
   async function run() {
     if (!url.trim()) {
-      setMessage("Website URL enter karein.");
+      setMessage("Enter a website URL.");
       return;
     }
     setBusy(true);
@@ -4054,7 +3950,7 @@ function TechnicalSeoTab() {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "Technical audit failed.");
       setAudit(d.audit);
-      setMessage("Technical SEO audit complete ho gaya.");
+      setMessage("Technical SEO audit complete.");
       load().catch(() => undefined);
     } catch (e: unknown) {
       setMessage(errorMessage(e, "Technical SEO error."));
@@ -4068,8 +3964,8 @@ function TechnicalSeoTab() {
       <section className="border border-line bg-white/60 p-6">
         <h2 className="font-head text-lg font-semibold">Technical SEO Automation</h2>
         <p className="mt-2 text-sm text-ink/60">
-          Public website ko crawl karke technical SEO issues identify karein aur prioritized, safe remediation plan
-          hasil karein. Nexora direct production website files ko bina approval mutate nahi karta.
+          Crawl a public website to identify technical SEO issues and get a prioritized, safe remediation plan. AIBISORA
+          does not mutate production website files without approval.
         </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_120px_auto]">
           <input
@@ -4205,7 +4101,7 @@ function LocalSeoTab() {
   }
   async function run() {
     if (!url.trim() || !location.trim()) {
-      setMessage("Website URL aur target location enter karein.");
+      setMessage("Enter a website URL and target location.");
       return;
     }
     setBusy(true);
@@ -4226,7 +4122,7 @@ function LocalSeoTab() {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "Local SEO analysis failed.");
       setSelected(d.project);
-      setMessage("Local SEO analysis complete ho gaya.");
+      setMessage("Local SEO analysis complete.");
       await load();
     } catch (e: unknown) {
       setMessage(errorMessage(e, "Local SEO error."));
@@ -4241,8 +4137,8 @@ function LocalSeoTab() {
       <div className="border border-line bg-white/60 p-6">
         <h2 className="font-head text-lg font-semibold">Local SEO Intelligence</h2>
         <p className="mt-2 text-sm text-ink/60">
-          Public website ko target location ke against analyze karke local search opportunities, location signals,
-          schema aur local SEO issues identify karein.
+          Analyze a public website against a target location to identify local search opportunities, location signals,
+          schema, and local SEO issues.
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <input
@@ -4254,7 +4150,7 @@ function LocalSeoTab() {
           <input
             value={location}
             onChange={(e) => setLocation(e.target.value)}
-            placeholder="Karachi, Sindh, Pakistan"
+            placeholder="London, United Kingdom"
             className="border border-line bg-white px-3 py-2 text-sm"
           />
           <input
@@ -4341,7 +4237,7 @@ function LocalSeoTab() {
                   <p className="mt-1 text-xs">Fix: {i.recommendation}</p>
                 </div>
               ))}
-              {!(a.issues || []).length && <p className="text-sm text-ink/50">Koi major local SEO issue nahi mili.</p>}
+              {!(a.issues || []).length && <p className="text-sm text-ink/50">No major local SEO issues found.</p>}
             </div>
           </div>
           <div className="mt-5 border border-line bg-white/60 p-5">
@@ -4424,7 +4320,7 @@ function SiteArchitectureTab() {
   );
   async function run() {
     if (!url.trim()) {
-      setMessage("Website URL enter karein.");
+      setMessage("Enter a website URL.");
       return;
     }
     setBusy(true);
@@ -4443,7 +4339,7 @@ function SiteArchitectureTab() {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "Architecture analysis failed.");
       setSelected(d.project);
-      setMessage("Internal linking aur site architecture analysis complete ho gaya.");
+      setMessage("Internal linking and site architecture analysis complete.");
       await load();
     } catch (e: unknown) {
       setMessage(errorMessage(e, "Architecture analysis error."));
@@ -4462,8 +4358,8 @@ function SiteArchitectureTab() {
       <section className="border border-line bg-white/60 p-6">
         <h2 className="font-head text-lg font-semibold">Internal Linking & Site Architecture</h2>
         <p className="mt-2 text-sm text-ink/60">
-          Public website ko crawl karke orphan/weak pages, hub candidates aur contextual internal-link opportunities
-          identify karein. Suggestions reviewable hain; Nexora live site ko automatically mutate nahi karta.
+          Crawl a public website to identify orphan or weak pages, hub candidates, and contextual internal-link
+          opportunities. Suggestions are reviewable; AIBISORA does not automatically mutate the live site.
         </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <input
@@ -4564,7 +4460,7 @@ function SiteArchitectureTab() {
                 </div>
               ))}
               {!(a.opportunities || []).length && (
-                <p className="text-sm text-ink/50">Koi strong linking opportunity nahi mili.</p>
+                <p className="text-sm text-ink/50">No strong linking opportunities found.</p>
               )}
             </div>
           </div>
@@ -4644,7 +4540,7 @@ function ExperimentsTab() {
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "Experiment create failed.");
-      setMessage("Experiment create ho gaya. Ab Variant A start karein.");
+      setMessage("Experiment created. Start Variant A now.");
       await load();
     } catch (e: unknown) {
       setMessage(errorMessage(e, "Experiment error."));
@@ -4676,8 +4572,8 @@ function ExperimentsTab() {
       <section className="border border-line bg-white/60 p-6">
         <h2 className="font-head text-lg font-semibold text-ink">SEO Experimentation</h2>
         <p className="mt-2 text-sm text-ink/60">
-          Do approved optimization versions ko same URL par sequentially compare karein. Yeh randomized traffic A/B test
-          nahi hai; Search Console based measurement hai.
+          Sequentially compare two approved optimization versions on the same URL. This is not a randomized traffic A/B
+          test; measurement is based on Search Console.
         </p>
         <div className="mt-5 grid gap-3">
           <select
@@ -4685,7 +4581,7 @@ function ExperimentsTab() {
             onChange={(e) => setDraftId(e.target.value)}
             className="border border-line bg-white px-3 py-2 text-sm"
           >
-            <option value="">Draft select karein</option>
+            <option value="">Select a draft</option>
             {drafts.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.title} · {d.status}
@@ -4808,7 +4704,7 @@ function ExperimentsTab() {
           </div>
         ))}
         {!experiments.length && (
-          <p className="border border-line bg-white/60 p-5 text-sm text-ink/50">Abhi koi SEO experiment nahi bana.</p>
+          <p className="border border-line bg-white/60 p-5 text-sm text-ink/50">No SEO experiments yet.</p>
         )}
       </section>
     </>
@@ -4818,164 +4714,296 @@ function ExperimentsTab() {
 function AnalyticsTab() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  function load() {
+    setLoading(true);
+    setError(null);
     apiFetch("/api/analytics")
-      .then((res) => res.json())
-      .then((d) => setData(d))
+      .then(async (res) => {
+        const text = await res.text();
+        const json = (text ? JSON.parse(text) : {}) as AnalyticsData & { error?: string };
+        if (!res.ok) throw new Error(json.error || "Analytics data could not be loaded.");
+        setData(json);
+      })
+      .catch((err: unknown) => {
+        const message = errorMessage(err, "Analytics data could not be loaded.");
+        setError(
+          /JSON|Unexpected end|Unexpected token/i.test(message)
+            ? "Sign in and select a workspace to load analytics. Sample graphs are never invented."
+            : message
+        );
+      })
       .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
-    return <p className="text-sm text-ink/60">Data load ho raha hai…</p>;
   }
 
-  if (!data) {
-    return <p className="text-sm text-clay">Analytics data load nahi ho saka.</p>;
+  useEffect(
+    () =>
+      scheduleMount(() => {
+        load();
+      }),
+    []
+  );
+
+  if (loading) {
+    return (
+      <div className="space-y-6" aria-busy="true" aria-label="Loading analytics">
+        <PageHeader
+          title="Analytics"
+          description="Live performance from connected sources. Charts and metrics appear only when real data exists."
+        />
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+        </div>
+        <Skeleton className="h-40" />
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Analytics"
+          description="Live performance from connected sources. Charts and metrics appear only when real data exists."
+        />
+        <EmptyState
+          title="Analytics couldn't be loaded"
+          description={error || "Analytics data could not be loaded."}
+          action={
+            <Button variant="primary" onClick={load}>
+              Retry
+            </Button>
+          }
+        />
+      </div>
+    );
   }
 
   const hasAnyData =
     data.website.scoreHistory.length > 0 ||
-    data.youtube ||
-    data.facebook ||
-    data.searchConsole ||
+    Boolean(data.youtube) ||
+    Boolean(data.facebook) ||
+    Boolean(data.searchConsole) ||
     data.snapshots.length > 0;
-
-  if (!hasAnyData) {
-    return (
-      <section className="border border-line bg-white/60 p-6">
-        <p className="text-sm text-ink/60">
-          Abhi koi data nahi hai. SEO Analyzer se koi website check karein, ya Publish tab se YouTube/Facebook connect
-          karein — Analytics yahan khud-ba-khud dikhne lagegi.
-        </p>
-      </section>
-    );
-  }
+  const gsc = data.searchConsole && !data.searchConsole.error ? data.searchConsole : null;
+  const latestSeo = data.website.scoreHistory[0];
+  const showKpis = Boolean(latestSeo || gsc || data.youtube?.channelStats || data.facebook?.pageStats);
+  const period =
+    gsc?.periodStart && gsc.periodEnd ? `${gsc.periodStart} → ${gsc.periodEnd}` : gsc?.siteUrl || undefined;
 
   return (
-    <>
-      {/* Website: SEO score history */}
-      {data.website.scoreHistory.length > 0 && (
-        <section className="border border-line bg-white/60 p-6">
-          <h2 className="font-head text-lg font-semibold text-ink">Website SEO Score Trend</h2>
-          <div className="mt-4 space-y-3">
-            {data.website.scoreHistory.map((entry) => (
-              <div key={entry.url} className="border border-line bg-white p-4">
-                <div className="flex items-center justify-between">
-                  <p className="truncate text-sm text-ink/70">{entry.url}</p>
-                  <div className="flex items-center gap-2">
-                    <span className="font-head text-xl text-signal" dir="ltr">
-                      {entry.latestScore}/100
-                    </span>
-                    {entry.trend !== null && (
-                      <span
-                        className={`text-xs ${
-                          entry.trend > 0 ? "text-ink" : entry.trend < 0 ? "text-clay" : "text-ink/40"
-                        }`}
-                      >
-                        {entry.trend > 0 ? `▲ +${entry.trend}` : entry.trend < 0 ? `▼ ${entry.trend}` : "— no change"}
-                      </span>
-                    )}
-                  </div>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow={gsc?.siteUrl}
+        title="Analytics"
+        description={
+          period
+            ? `Live performance from connected sources. Period ${period}. Charts and metrics appear only when real data exists.`
+            : "Live performance from connected sources. Charts and metrics appear only when real data exists."
+        }
+      />
+
+      {!hasAnyData ? (
+        <EmptyState
+          title="No analytics data yet."
+          description="Connect your website or channel to start collecting performance data. Run an SEO audit, or connect Search Console, YouTube, or Facebook. Sample graphs are never invented."
+        />
+      ) : (
+        <>
+          {showKpis ? (
+            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Performance overview">
+              {latestSeo ? (
+                <MetricCard
+                  label="SEO health"
+                  value={`${latestSeo.latestScore}/100`}
+                  hint={latestSeo.url}
+                  trend={latestSeo.trend}
+                />
+              ) : null}
+              {gsc ? (
+                <>
+                  <MetricCard label="Organic clicks" value={(gsc.clicks || 0).toLocaleString()} hint="Search Console" />
+                  <MetricCard
+                    label="Impressions"
+                    value={(gsc.impressions || 0).toLocaleString()}
+                    hint="Search Console"
+                  />
+                  <MetricCard
+                    label="CTR"
+                    value={`${((gsc.ctr || 0) * 100).toFixed(2)}%`}
+                    hint={
+                      gsc.averagePosition != null ? `Avg position ${Number(gsc.averagePosition).toFixed(1)}` : undefined
+                    }
+                  />
+                </>
+              ) : null}
+              {data.youtube?.channelStats ? (
+                <MetricCard
+                  label="YouTube views"
+                  value={data.youtube.channelStats.viewCount.toLocaleString()}
+                  hint={data.youtube.channelStats.channelTitle}
+                />
+              ) : null}
+              {data.facebook?.pageStats ? (
+                <MetricCard
+                  label="Facebook followers"
+                  value={data.facebook.pageStats.fanCount.toLocaleString()}
+                  hint={data.facebook.pageStats.pageName}
+                />
+              ) : null}
+            </section>
+          ) : null}
+
+          {data.website.scoreHistory.length > 0 ? (
+            <div>
+              <SectionHeader title="How is SEO health changing?" description="Scores from completed website audits." />
+              <div className="space-y-3">
+                {data.website.scoreHistory.map((entry) => {
+                  const scores = entry.history.map((point) => point.score).filter((value) => Number.isFinite(value));
+                  return (
+                    <Card key={entry.url}>
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm text-ink">{entry.url}</p>
+                          <p className="mt-1 text-xs text-muted">
+                            {entry.history.length} check{entry.history.length > 1 ? "s" : ""} recorded
+                          </p>
+                        </div>
+                        <ScoreMark value={entry.latestScore} label="Latest score" />
+                      </div>
+                      {scores.length >= 2 ? (
+                        <div className="mt-4">
+                          <Sparkline values={scores} label={`SEO score trend for ${entry.url}`} />
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-sm text-muted">Run another audit to see this URL trend.</p>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {data.searchConsole?.error ? <Alert>{data.searchConsole.error}</Alert> : null}
+
+          {data.youtube ? (
+            <Card>
+              <SectionHeader
+                title="Which YouTube content is performing?"
+                description="Channel stats and videos published or optimized through AIBISORA."
+              />
+              {data.youtube.channelStats ? (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <MetricCard
+                    flush
+                    label="Subscribers"
+                    value={data.youtube.channelStats.subscriberCount.toLocaleString()}
+                  />
+                  <MetricCard flush label="Total views" value={data.youtube.channelStats.viewCount.toLocaleString()} />
+                  <MetricCard flush label="Videos" value={data.youtube.channelStats.videoCount.toLocaleString()} />
                 </div>
-                <p className="mt-1 text-xs text-ink/40">
-                  {entry.history.length} check{entry.history.length > 1 ? "s" : ""} so far
+              ) : null}
+              {data.youtube.videos.length > 0 ? (
+                <ul className="mt-4 space-y-2">
+                  {data.youtube.videos.map((v) => (
+                    <li key={v.videoId} className="rounded-[var(--nx-radius-sm)] border border-line bg-elevated p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <p className="text-sm font-medium text-ink">{v.title}</p>
+                        {v.underperforming ? <Badge tone="warning">Below average</Badge> : null}
+                      </div>
+                      <p className="mt-1 text-xs text-muted">
+                        {v.viewCount.toLocaleString()} views · {v.likeCount.toLocaleString()} likes ·{" "}
+                        {v.commentCount.toLocaleString()} comments
+                      </p>
+                      {v.underperforming ? (
+                        <p className="mt-1 text-xs text-[var(--nx-text-secondary)]">
+                          Significantly below the channel average — consider re-optimizing the title and description.
+                        </p>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-3 text-sm text-muted">
+                  No videos have been published or optimized through AIBISORA yet.
                 </p>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+              )}
+            </Card>
+          ) : null}
 
-      {/* YouTube */}
-      {data.youtube && (
-        <section className="mt-6 border border-line bg-white/60 p-6">
-          <h2 className="font-head text-lg font-semibold text-ink">YouTube</h2>
-          {data.youtube.channelStats && (
-            <div className="mt-3 grid grid-cols-3 gap-3 text-center">
-              <StatBox label="Subscribers" value={data.youtube.channelStats.subscriberCount} />
-              <StatBox label="Total Views" value={data.youtube.channelStats.viewCount} />
-              <StatBox label="Videos" value={data.youtube.channelStats.videoCount} />
-            </div>
-          )}
-          {data.youtube.videos.length > 0 ? (
-            <div className="mt-4 space-y-2">
-              <p className="text-sm text-ink/60">Nexora se publish/optimize ki gayi videos:</p>
-              {data.youtube.videos.map((v) => (
-                <div
-                  key={v.videoId}
-                  className={`border p-3 ${v.underperforming ? "border-clay bg-clay/5" : "border-line bg-white"}`}
-                >
-                  <p className="text-sm font-medium text-ink">{v.title}</p>
-                  <p className="mt-1 text-xs text-ink/60">
-                    {v.viewCount} views · {v.likeCount} likes · {v.commentCount} comments
-                  </p>
-                  {v.underperforming && (
-                    <p className="mt-1 text-xs text-clay">
-                      Channel average se kaafi kam — title/description dobara optimize karne ka soch sakte hain.
+          {data.facebook ? (
+            <Card>
+              <SectionHeader title="How is Facebook performing?" />
+              {data.facebook.pageStats ? (
+                <MetricCard
+                  flush
+                  label="Page followers"
+                  value={data.facebook.pageStats.fanCount.toLocaleString()}
+                  hint={data.facebook.pageStats.pageName}
+                />
+              ) : null}
+              {data.facebook.posts.length > 0 ? (
+                <ul className="mt-4 space-y-2">
+                  {data.facebook.posts.map((p) => (
+                    <li key={p.postId} className="rounded-[var(--nx-radius-sm)] border border-line bg-elevated p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <p className="line-clamp-2 text-sm text-ink">{p.message}</p>
+                        {p.underperforming ? <Badge tone="warning">Below average</Badge> : null}
+                      </div>
+                      <p className="mt-1 text-xs text-muted">
+                        {p.likeCount.toLocaleString()} likes · {p.commentCount.toLocaleString()} comments ·{" "}
+                        {p.shareCount.toLocaleString()} shares
+                      </p>
+                      {p.underperforming ? (
+                        <p className="mt-1 text-xs text-[var(--nx-text-secondary)]">
+                          Engagement is significantly below the page average.
+                        </p>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-3 text-sm text-muted">No recent posts found yet.</p>
+              )}
+            </Card>
+          ) : null}
+
+          {data.snapshots.length > 0 ? (
+            <div>
+              <SectionHeader
+                title="Saved snapshots"
+                description="Historical metrics already stored for this workspace."
+              />
+              <ul className="divide-y divide-[var(--nx-border)] rounded-[var(--nx-radius-md)] border border-line">
+                {data.snapshots.map((snap, index) => (
+                  <li
+                    key={`${snap.provider}-${snap.period_start}-${index}`}
+                    className="flex flex-wrap items-center justify-between gap-2 px-4 py-3"
+                  >
+                    <div>
+                      <p className="text-sm text-ink">{snap.provider.replace(/-/g, " ")}</p>
+                      <p className="text-xs text-muted">
+                        {snap.period_start} → {snap.period_end}
+                      </p>
+                    </div>
+                    <p className="text-xs text-[var(--nx-text-secondary)]">
+                      {snap.metrics.clicks != null
+                        ? `${snap.metrics.clicks.toLocaleString()} clicks`
+                        : "Recorded snapshot"}
                     </p>
-                  )}
-                </div>
-              ))}
+                  </li>
+                ))}
+              </ul>
             </div>
-          ) : (
-            <p className="mt-3 text-sm text-ink/50">Abhi tak Nexora se koi video publish/optimize nahi hui.</p>
-          )}
-        </section>
+          ) : null}
+        </>
       )}
-
-      {/* Google Search Console */}
-      {data.searchConsole && (
-        <section className="mt-6 border border-line bg-white/60 p-6">
-          <h2 className="font-head text-lg font-semibold text-ink">Google Search Console</h2>
-          {data.searchConsole.error ? (
-            <p className="mt-3 text-sm text-clay">{data.searchConsole.error}</p>
-          ) : (
-            <>
-              <p className="mt-1 text-xs text-ink/50">
-                {data.searchConsole.siteUrl} · {data.searchConsole.periodStart} → {data.searchConsole.periodEnd}
-              </p>
-              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <StatBox label="Organic Clicks" value={data.searchConsole.clicks || 0} />
-                <StatBox label="Impressions" value={data.searchConsole.impressions || 0} />
-                <StatBox label="CTR %" value={Number(((data.searchConsole.ctr || 0) * 100).toFixed(2))} />
-                <StatBox label="Avg Position" value={Number((data.searchConsole.averagePosition || 0).toFixed(1))} />
-              </div>
-            </>
-          )}
-        </section>
-      )}
-
-      {/* Facebook */}
-      {data.facebook && (
-        <section className="mt-6 border border-line bg-white/60 p-6">
-          <h2 className="font-head text-lg font-semibold text-ink">Facebook</h2>
-          {data.facebook.pageStats && (
-            <div className="mt-3">
-              <StatBox label="Page Followers" value={data.facebook.pageStats.fanCount} />
-            </div>
-          )}
-          {data.facebook.posts.length > 0 ? (
-            <div className="mt-4 space-y-2">
-              {data.facebook.posts.map((p) => (
-                <div
-                  key={p.postId}
-                  className={`border p-3 ${p.underperforming ? "border-clay bg-clay/5" : "border-line bg-white"}`}
-                >
-                  <p className="line-clamp-2 text-sm text-ink">{p.message}</p>
-                  <p className="mt-1 text-xs text-ink/60">
-                    {p.likeCount} likes · {p.commentCount} comments · {p.shareCount} shares
-                  </p>
-                  {p.underperforming && <p className="mt-1 text-xs text-clay">Page average se kaafi kam engagement.</p>}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-3 text-sm text-ink/50">Abhi tak koi recent posts nahi mile.</p>
-          )}
-        </section>
-      )}
-    </>
+    </div>
   );
 }
 
@@ -5021,7 +5049,7 @@ function YouTubePerformanceIntelligenceTab() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
-  if (loading) return <p className="text-sm text-ink/60">YouTube performance intelligence load ho rahi hai…</p>;
+  if (loading) return <p className="text-sm text-ink/60">Loading YouTube performance intelligence…</p>;
   if (error)
     return (
       <section className="border border-clay bg-white/60 p-6">
@@ -5082,7 +5110,7 @@ function AdvancedAnalyticsTab() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
-  if (loading) return <p className="text-sm text-ink/60">Advanced analytics load ho rahi hai…</p>;
+  if (loading) return <p className="text-sm text-ink/60">Loading advanced analytics…</p>;
   if (error)
     return (
       <section className="border border-clay bg-white/60 p-6">
@@ -5139,7 +5167,7 @@ function AdvancedAnalyticsTab() {
           <StatBox label="Clicks / Content" value={Number((data.roi.clicksPerPublishedContent ?? 0).toFixed(1))} />
         </div>
         <p className="mt-4 text-xs text-ink/50">
-          ROI yahan directional hai: organic clicks revenue nahi hain. Attribution correlation-only hai.
+          ROI here is directional: organic clicks are not revenue. Attribution is correlation-only.
         </p>
       </section>
       <section className="mt-6 border border-line bg-white/60 p-6">
@@ -5192,7 +5220,7 @@ function MonitoringTab() {
       setUrl("");
       await load();
     } catch (e: unknown) {
-      setMessage(errorMessage(e, "Monitoring profile create nahi hua."));
+      setMessage(errorMessage(e, "Could not create the monitoring profile."));
     } finally {
       setBusy(false);
     }
@@ -5208,7 +5236,7 @@ function MonitoringTab() {
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
-      setMessage(`${d.result.alerts?.length || 0} alert(s) detect huay.`);
+      setMessage(`${d.result.alerts?.length || 0} alert(s) detected.`);
       await load();
     } catch (e: unknown) {
       setMessage(errorMessage(e, "Monitoring run failed."));
@@ -5221,8 +5249,7 @@ function MonitoringTab() {
       <div className="border border-line bg-white/60 p-6">
         <h2 className="font-head text-lg font-semibold">SEO Monitoring & Alerts</h2>
         <p className="mt-1 text-sm text-ink/60">
-          Technical SEO aur Search Console signals ko snapshots ke sath compare karein. Yeh website ko mutate nahi
-          karta.
+          Compare technical SEO and Search Console signals across snapshots. This does not mutate the website.
         </p>
         <div className="mt-4 grid gap-2 md:grid-cols-3">
           <input
@@ -5261,7 +5288,7 @@ function MonitoringTab() {
               </div>
             ))
           ) : (
-            <p className="text-sm text-ink/60">Abhi koi monitoring profile nahi.</p>
+            <p className="text-sm text-ink/60">No monitoring profiles yet.</p>
           )}
         </div>
       </div>
@@ -5289,7 +5316,7 @@ function MonitoringTab() {
 function AutomationTab() {
   // Trend ideas
   const [niche, setNiche] = useState("");
-  const [trendLanguage] = useState<Language>("ur");
+  const [trendLanguage] = useState<Language>(DEFAULT_CONTENT_LANGUAGE);
   const [ideas, setIdeas] = useState<TrendIdea[]>([]);
   const [ideasLoading, setIdeasLoading] = useState(false);
   const [ideasError, setIdeasError] = useState<string | null>(null);
@@ -5308,7 +5335,7 @@ function AutomationTab() {
     audience: "",
     tone: "",
   });
-  const [runLanguage] = useState<Language>("ur");
+  const [runLanguage] = useState<Language>(DEFAULT_CONTENT_LANGUAGE);
   const [runMessage, setRunMessage] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
 
@@ -5344,7 +5371,7 @@ function AutomationTab() {
       if (!res.ok) throw new Error(data.error);
       setIdeas(data.ideas || []);
     } catch (e: unknown) {
-      setIdeasError(errorMessage(e, "Kuch ghalat ho gaya."));
+      setIdeasError(errorMessage(e, "Something went wrong."));
     } finally {
       setIdeasLoading(false);
     }
@@ -5369,7 +5396,7 @@ function AutomationTab() {
 
   async function runDueItems() {
     if (!runProfile.businessName.trim()) {
-      setRunMessage("Pehle business profile bharein (neeche).");
+      setRunMessage("Fill in the business profile below first.");
       return;
     }
     setRunning(true);
@@ -5384,12 +5411,12 @@ function AutomationTab() {
       if (!res.ok) throw new Error(data.error);
       setRunMessage(
         data.processed === 0
-          ? "Aaj koi item due nahi tha."
-          : `${data.processed} item(s) process ho gaye — 'Publish' tab mein check karein.`
+          ? "No items were due today."
+          : `${data.processed} item(s) processed — check the Publish tab.`
       );
       await loadCalendar();
     } catch (e: unknown) {
-      setRunMessage(errorMessage(e, "Kuch ghalat ho gaya."));
+      setRunMessage(errorMessage(e, "Something went wrong."));
     } finally {
       setRunning(false);
     }
@@ -5401,7 +5428,7 @@ function AutomationTab() {
     try {
       const res = await apiFetch("/api/report");
       const data = await res.json();
-      setReport(data.report || data.error || "Report nahi mila.");
+      setReport(data.report || data.error || "Report not found.");
     } finally {
       setReportLoading(false);
     }
@@ -5413,14 +5440,12 @@ function AutomationTab() {
       {/* Trend ideas */}
       <section className="border border-line bg-white/60 p-6">
         <h2 className="font-head text-lg font-semibold text-ink">Trend Ideas</h2>
-        <p className="mt-1 text-sm text-ink/60">
-          Web search se abhi ke real trends dekh kar 5 content ideas suggest karega.
-        </p>
+        <p className="mt-1 text-sm text-ink/60">Looks up current web trends and suggests 5 content ideas.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <input
             value={niche}
             onChange={(e) => setNiche(e.target.value)}
-            placeholder="مثال: بس ٹکٹ بکنگ Pakistan"
+            placeholder="e.g. bus ticket booking"
             className="focus-ring flex-1 border border-line bg-white px-3 py-2 text-ink placeholder:text-ink/30"
           />
           <button
@@ -5428,7 +5453,7 @@ function AutomationTab() {
             disabled={!niche.trim() || ideasLoading}
             className="focus-ring border-2 border-ink bg-signal px-4 py-2 text-sm font-medium text-ink transition hover:bg-ink hover:text-signal disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {ideasLoading ? "…" : "Ideas دیکھیں"}
+            {ideasLoading ? "…" : "Get ideas"}
           </button>
         </div>
         {ideasError && <p className="mt-2 text-sm text-clay">{ideasError}</p>}
@@ -5449,8 +5474,8 @@ function AutomationTab() {
       <section className="mt-6 border border-line bg-white/60 p-6">
         <h2 className="font-head text-lg font-semibold text-ink">Content Calendar</h2>
         <p className="mt-1 text-sm text-ink/60">
-          Topics plan kar ke schedule karein — "Run Due Items" dabane se aaj/pehle ki dates wale items khud generate ho
-          jate hain (production mein ye cron se automatic hoga).
+          Plan topics and schedule them — &quot;Run Due Items&quot; generates items dated today or earlier (in
+          production this will run automatically via cron).
         </p>
 
         <div className="mt-3 flex flex-wrap gap-2">
@@ -5486,7 +5511,7 @@ function AutomationTab() {
             disabled={!newTopic.trim() || !newDate || calendarBusy}
             className="focus-ring border-2 border-ink bg-signal px-4 py-2 text-sm font-medium text-ink transition hover:bg-ink hover:text-signal disabled:opacity-50"
           >
-            Add کریں
+            Add
           </button>
         </div>
 
@@ -5514,25 +5539,25 @@ function AutomationTab() {
         )}
 
         <div className="mt-5 border-t border-line pt-4">
-          <p className="mb-2 text-sm text-ink/70">Due items generate karne ke liye business profile:</p>
+          <p className="mb-2 text-sm text-ink/70">Business profile for generating due items:</p>
           <div className="grid gap-2 sm:grid-cols-2">
             <Field
-              label="کاروبار کا نام"
+              label="Business name"
               value={runProfile.businessName}
               onChange={(v) => setRunProfile({ ...runProfile, businessName: v })}
             />
             <Field
-              label="شعبہ / نچ"
+              label="Industry / niche"
               value={runProfile.niche}
               onChange={(v) => setRunProfile({ ...runProfile, niche: v })}
             />
             <Field
-              label="ٹارگٹ آڈینس"
+              label="Target audience"
               value={runProfile.audience}
               onChange={(v) => setRunProfile({ ...runProfile, audience: v })}
             />
             <Field
-              label="برانڈ کا لہجہ"
+              label="Brand tone"
               value={runProfile.tone}
               onChange={(v) => setRunProfile({ ...runProfile, tone: v })}
             />
@@ -5542,7 +5567,7 @@ function AutomationTab() {
             disabled={running}
             className="focus-ring mt-3 border-2 border-ink bg-paper px-4 py-2 text-sm font-medium text-ink transition hover:bg-ink hover:text-paper disabled:opacity-50"
           >
-            {running ? "چل رہا ہے…" : "Run Due Items Now"}
+            {running ? "Running…" : "Run Due Items Now"}
           </button>
           {runMessage && <p className="mt-2 text-sm text-ink/70">{runMessage}</p>}
         </div>
@@ -5551,13 +5576,13 @@ function AutomationTab() {
       {/* Performance report */}
       <section className="mt-6 border border-line bg-white/60 p-6">
         <h2 className="font-head text-lg font-semibold text-ink">Performance Report</h2>
-        <p className="mt-1 text-sm text-ink/60">Analytics tab ka data le kar ek plain-language summary banata hai.</p>
+        <p className="mt-1 text-sm text-ink/60">Builds a plain-language summary from Analytics tab data.</p>
         <button
           onClick={fetchReport}
           disabled={reportLoading}
           className="focus-ring mt-3 border-2 border-ink bg-signal px-5 py-2 text-sm font-medium text-ink transition hover:bg-ink hover:text-signal disabled:opacity-50"
         >
-          {reportLoading ? "بن رہا ہے…" : "Report بنائیں"}
+          {reportLoading ? "Generating…" : "Create report"}
         </button>
         {report && (
           <div className="mt-4 border border-line bg-white p-4">
@@ -5626,11 +5651,30 @@ function SystemTab() {
 
   return (
     <div className="space-y-6">
-      <section className="border-2 border-ink bg-white p-6">
+      <section className="nx-card p-6">
+        <h2 className="nx-section-title text-ink">Appearance</h2>
+        <p className="mt-1 text-sm text-[var(--nx-text-secondary)]">
+          Dark, light, or match the operating system. The choice is saved for this browser and, when signed in, your
+          account.
+        </p>
+        <div className="mt-4">
+          <ThemeToggle compact={false} />
+        </div>
+      </section>
+      <section className="nx-card p-6">
+        <h2 className="nx-section-title text-ink">Language</h2>
+        <p className="mt-1 text-sm text-[var(--nx-text-secondary)]">
+          Interface language is independent from AI content-generation language.
+        </p>
+        <div className="mt-4 max-w-sm">
+          <LanguageSelector id="settings-ui-language" />
+        </div>
+      </section>
+      <section className="nx-card p-6">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="font-head text-xl font-semibold text-ink">System Health</h2>
-            <p className="text-sm text-ink/60">Publishing connections, durable jobs aur recent audit activity.</p>
+            <p className="text-sm text-ink/60">Publishing connections, durable jobs, and recent audit activity.</p>
           </div>
           <button onClick={() => load()} className="border border-line px-3 py-2 text-sm text-ink hover:border-ink">
             Refresh
@@ -5750,9 +5794,9 @@ function SystemTab() {
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="border border-line bg-paper p-4">
-      <div className="text-xs uppercase tracking-wide text-ink/50">{label}</div>
-      <div className="mt-1 font-head text-2xl text-ink">{value}</div>
+    <div className="nx-card p-4">
+      <div className="nx-label">{label}</div>
+      <div className="nx-metric mt-2 text-ink">{value}</div>
     </div>
   );
 }
@@ -5796,12 +5840,12 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-sm text-ink/80">{label}</span>
+      <span className="nx-label">{label}</span>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="focus-ring mt-1 w-full border border-line bg-white px-3 py-2 text-ink placeholder:text-ink/30"
+        className="focus-ring mt-1 min-h-10 w-full rounded-[var(--nx-radius-sm)] border border-[var(--nx-border-strong)] bg-elevated px-3 py-2 text-sm text-ink placeholder:text-muted"
       />
     </label>
   );

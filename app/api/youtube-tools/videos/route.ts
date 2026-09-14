@@ -14,6 +14,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ videos: audited });
   } catch (err: unknown) {
     console.error("youtube videos error:", err);
-    return NextResponse.json({ error: errorMessage(err, "Videos fetch nahi ho sakin.") }, { status: 500 });
+    return NextResponse.json({ error: errorMessage(err, "Videos could not be fetched.") }, { status: 500 });
   }
 }

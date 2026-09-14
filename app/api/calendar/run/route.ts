@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     };
 
     if (!profile?.businessName) {
-      return NextResponse.json({ error: "Business profile chahiye content generate karne ke liye." }, { status: 400 });
+      return NextResponse.json({ error: "A business profile is required to generate content." }, { status: 400 });
     }
 
     const due = await getDueCalendarItemsRemote({ req, workspaceId: tenant?.workspaceId });
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
           // auto-publish for YouTube items, leave as "generated" for manual
           // follow-up with a video ID from the Content Generator tab.
           await updateCalendarItemRemote({ req, workspaceId: tenant?.workspaceId }, item.id, { status: "generated" });
-          results.push({ item: item.id, status: "generated", note: "YouTube: Video ID manually add karein." });
+          results.push({ item: item.id, status: "generated", note: "YouTube: add a video ID manually." });
           continue;
         }
 
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
       } catch (genErr: unknown) {
         await updateCalendarItemRemote({ req, workspaceId: tenant?.workspaceId }, item.id, {
           status: "failed",
-          errorMessage: errorMessage(genErr, "Generation fail ho gaya."),
+          errorMessage: errorMessage(genErr, "Generation failed."),
         });
         results.push({ item: item.id, status: "failed", error: errorMessage(genErr) });
       }
@@ -110,6 +110,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ processed: results.length, results });
   } catch (err) {
     console.error("calendar run error:", err);
-    return NextResponse.json({ error: "Calendar run nahi ho saka." }, { status: 500 });
+    return NextResponse.json({ error: "The calendar run could not be completed." }, { status: 500 });
   }
 }

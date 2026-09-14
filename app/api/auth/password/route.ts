@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth/supabase";
 import { readAccessTokenFromRequest } from "@/lib/auth/session-cookie";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 
 export async function POST(req: NextRequest) {
+  const rate = checkRateLimit(req, "auth-password");
+  if (!rate.ok) {
+    return NextResponse.json(
+      { error: "Too many password attempts. Try again shortly." },
+      { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
+    );
+  }
   const user = await getAuthenticatedUser(req);
   if (!user)
     return NextResponse.json({ error: "Recovery session expired. Request a new reset email." }, { status: 401 });

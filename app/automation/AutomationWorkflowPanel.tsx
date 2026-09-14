@@ -93,8 +93,8 @@ export default function AutomationWorkflowPanel() {
     <section className="mt-6 border border-line bg-white/60 p-6">
       <h2 className="font-head text-lg font-semibold">SEO Automation & Workflows</h2>
       <p className="mt-1 text-sm text-ink/60">
-        V23–V30 SEO engines ko ordered workflow mein run karein. Workflow findings generate karta hai; live website ko
-        silently modify nahi karta.
+        Run the V23–V30 SEO engines as an ordered workflow. The workflow generates findings; it does not silently modify
+        the live website.
       </p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="text-sm">
@@ -128,7 +128,7 @@ export default function AutomationWorkflowPanel() {
           <textarea
             value={location}
             onChange={(e) => setLocation(e.target.value)}
-            placeholder="Karachi, Pakistan"
+            placeholder="London, United Kingdom"
             className="mt-1 min-h-20 w-full border border-line bg-white px-3 py-2"
           />
         </label>

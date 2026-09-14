@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     if (!topic || !profile) {
       return NextResponse.json({ error: "Topic and business profile are required." }, { status: 400 });
     }
-    const post = await generateCommunityPost(topic, profile, language || "ur");
+    const post = await generateCommunityPost(topic, profile, language || "en");
     await entitled.consume();
     return NextResponse.json({
       post,

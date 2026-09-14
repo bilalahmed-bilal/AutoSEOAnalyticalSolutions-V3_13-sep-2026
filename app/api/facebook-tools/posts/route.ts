@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isFacebookSecurityContext, requireFacebookAccess } from "@/lib/facebook-security";
 import { getFacebookPageStats, getFacebookRecentPosts } from "@/lib/analytics/facebook";
 import { flagUnderperforming } from "@/lib/analytics/audit";
-import { errorMessage } from "@/lib/unknown";
+import { jsonPublicError } from "@/lib/security/public-error";
 import { isProductAccess, requireProductAccess } from "@/lib/billing/access";
 
 export async function GET(req: NextRequest) {
@@ -16,6 +16,6 @@ export async function GET(req: NextRequest) {
     const audited = flagUnderperforming(posts, (p) => p.likeCount + p.commentCount + p.shareCount);
     return NextResponse.json({ pageStats, posts: audited });
   } catch (err: unknown) {
-    return NextResponse.json({ error: errorMessage(err, "Posts fetch nahi ho sakay.") }, { status: 500 });
+    return jsonPublicError(err, "Posts could not be fetched.");
   }
 }

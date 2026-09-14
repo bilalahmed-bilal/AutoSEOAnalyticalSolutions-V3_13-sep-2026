@@ -20,17 +20,17 @@ export async function POST(req: NextRequest) {
       language?: Language;
     };
     if (!videoIds || videoIds.length === 0 || !niche) {
-      return NextResponse.json({ error: "Video IDs aur niche zaroori hain." }, { status: 400 });
+      return NextResponse.json({ error: "Video IDs and a niche are required." }, { status: 400 });
     }
     if (videoIds.length > 10) {
-      return NextResponse.json({ error: "Ek baar mein zyada se zyada 10 videos." }, { status: 400 });
+      return NextResponse.json({ error: "A maximum of 10 videos is allowed at once." }, { status: 400 });
     }
 
     const results = [];
     for (const videoId of videoIds) {
       try {
         const existing = await fetchVideoSnippet(access.settings, videoId);
-        const fix = await generateYouTubeSeoFix(existing, niche, language || "ur");
+        const fix = await generateYouTubeSeoFix(existing, niche, language || "en");
         // Bulk changes are always "suggest only" (queued for manual approval),
         // regardless of the channel's auto-publish permission setting — per
         // Section 3's risk tiers, bulk edits are a high-risk category.
@@ -67,6 +67,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ results });
   } catch (err) {
     console.error("bulk optimize error:", err);
-    return NextResponse.json({ error: "Bulk optimize fail ho gaya." }, { status: 500 });
+    return NextResponse.json({ error: "Bulk optimize failed." }, { status: 500 });
   }
 }

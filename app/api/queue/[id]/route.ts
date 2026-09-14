@@ -23,7 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     if (action === "reject") {
       const updated = await updateDraftRemote({ req, workspaceId: tenant?.workspaceId }, id, { status: "rejected" });
-      if (!updated) return NextResponse.json({ error: "Draft nahi mila." }, { status: 404 });
+      if (!updated) return NextResponse.json({ error: "Draft not found." }, { status: 404 });
       return NextResponse.json({ draft: updated });
     }
 
@@ -31,12 +31,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const draftBefore = await updateDraftRemote({ req, workspaceId: tenant?.workspaceId }, id, {
         status: "approved",
       });
-      if (!draftBefore) return NextResponse.json({ error: "Draft nahi mila." }, { status: 404 });
+      if (!draftBefore) return NextResponse.json({ error: "Draft not found." }, { status: 404 });
       if (!tenant?.workspaceId)
         return NextResponse.json({
           draft: draftBefore,
           queued: false,
-          message: "Demo mode: worker queue ke liye Supabase workspace required hai.",
+          message: "Demo mode: a Supabase workspace is required for the worker queue.",
         });
 
       const job = await enqueueJob({
@@ -51,6 +51,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Unknown action." }, { status: 400 });
   } catch (err) {
     console.error("queue action error:", err);
-    return NextResponse.json({ error: "Kuch ghalat ho gaya." }, { status: 500 });
+    return NextResponse.json({ error: "Something went wrong." }, { status: 500 });
   }
 }

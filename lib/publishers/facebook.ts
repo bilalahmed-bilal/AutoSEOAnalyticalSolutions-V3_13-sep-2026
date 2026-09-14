@@ -1,4 +1,5 @@
 import { type UnknownRecord } from "@/lib/unknown";
+import { facebookGraphApiBase } from "@/lib/oauth/facebook-graph";
 // Fourth publish adapter. Posts text (optionally with a link) to a connected
 // Facebook Page's feed via the Meta Graph API.
 //
@@ -12,23 +13,25 @@ export interface FacebookSettings {
   pageAccessToken: string;
 }
 
-const GRAPH_API = "https://graph.facebook.com/v20.0";
+function graphApi() {
+  return facebookGraphApiBase();
+}
 
 export async function testFacebookConnection(settings: FacebookSettings): Promise<{ ok: boolean; message: string }> {
   try {
-    const res = await fetch(`${GRAPH_API}/${settings.pageId}?fields=name&access_token=${settings.pageAccessToken}`, {
+    const res = await fetch(`${graphApi()}/${settings.pageId}?fields=name&access_token=${settings.pageAccessToken}`, {
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) {
       return {
         ok: false,
-        message: `Facebook ne connection reject kar di (status ${res.status}). Page ID/token check karein.`,
+        message: `Facebook rejected the connection (status ${res.status}). Check the Page ID and token.`,
       };
     }
     const data = await res.json();
     return { ok: true, message: data.name ? `Connected: "${data.name}".` : "Connected." };
   } catch {
-    return { ok: false, message: "Facebook tak nahi pahunch paye. Dobara koshish karein." };
+    return { ok: false, message: "Could not reach Facebook. Please try again." };
   }
 }
 
@@ -36,7 +39,7 @@ export async function publishToFacebook(
   settings: FacebookSettings,
   post: { message: string }
 ): Promise<{ link: string }> {
-  const res = await fetch(`${GRAPH_API}/${settings.pageId}/feed`, {
+  const res = await fetch(`${graphApi()}/${settings.pageId}/feed`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -48,7 +51,8 @@ export async function publishToFacebook(
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Facebook publish failed (status ${res.status}): ${errText}`);
+    console.error("facebook publish failed", res.status, errText.slice(0, 200));
+    throw new Error("Facebook could not publish this post. Check the Page connection and try again.");
   }
 
   const data = await res.json();
@@ -66,7 +70,7 @@ export interface PageInfo {
 
 export async function fetchPageInfo(settings: FacebookSettings): Promise<PageInfo> {
   const res = await fetch(
-    `${GRAPH_API}/${settings.pageId}?fields=name,about,category,fan_count&access_token=${settings.pageAccessToken}`,
+    `${graphApi()}/${settings.pageId}?fields=name,about,category,fan_count&access_token=${settings.pageAccessToken}`,
     { signal: AbortSignal.timeout(10_000) }
   );
   if (!res.ok) throw new Error(`Page info fetch failed (status ${res.status}).`);
@@ -85,7 +89,7 @@ export async function fetchPageInfo(settings: FacebookSettings): Promise<PageInf
 // used for publishing) — if the token lacks it, Facebook returns a clear
 // permission error which is surfaced as-is rather than papered over.
 export async function updatePageInfo(settings: FacebookSettings, fields: { about?: string }): Promise<{ ok: true }> {
-  const res = await fetch(`${GRAPH_API}/${settings.pageId}`, {
+  const res = await fetch(`${graphApi()}/${settings.pageId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...fields, access_token: settings.pageAccessToken }),
@@ -93,7 +97,8 @@ export async function updatePageInfo(settings: FacebookSettings, fields: { about
   });
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Page update failed (status ${res.status}): ${errText}`);
+    console.error("facebook page update failed", res.status, errText.slice(0, 200));
+    throw new Error("Facebook could not update this Page. The connected token may lack pages_manage_metadata.");
   }
   return { ok: true };
 }
@@ -107,10 +112,10 @@ export interface PageComment {
 
 export async function fetchPostComments(settings: FacebookSettings, postId: string): Promise<PageComment[]> {
   const res = await fetch(
-    `${GRAPH_API}/${postId}/comments?fields=message,from,created_time&access_token=${settings.pageAccessToken}`,
+    `${graphApi()}/${postId}/comments?fields=message,from,created_time&access_token=${settings.pageAccessToken}`,
     { signal: AbortSignal.timeout(10_000) }
   );
-  if (!res.ok) throw new Error(`Comments fetch failed (status ${res.status}). Post ID check karein.`);
+  if (!res.ok) throw new Error(`Comments fetch failed (status ${res.status}). Check the Post ID.`);
   const data = await res.json();
   return (data.data || []).map((c: UnknownRecord) => ({
     id: c.id,
@@ -125,7 +130,7 @@ export async function replyToComment(
   commentId: string,
   message: string
 ): Promise<{ ok: true }> {
-  const res = await fetch(`${GRAPH_API}/${commentId}/comments`, {
+  const res = await fetch(`${graphApi()}/${commentId}/comments`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message, access_token: settings.pageAccessToken }),
@@ -133,7 +138,8 @@ export async function replyToComment(
   });
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Reply failed (status ${res.status}): ${errText}`);
+    console.error("facebook comment reply failed", res.status, errText.slice(0, 200));
+    throw new Error("Facebook could not send this reply. Check the comment ID and Page permissions.");
   }
   return { ok: true };
 }
@@ -152,10 +158,10 @@ export async function fetchPublicPageStats(
   pageIdOrUsername: string
 ): Promise<PublicPageStats> {
   const res = await fetch(
-    `${GRAPH_API}/${encodeURIComponent(pageIdOrUsername.trim())}?fields=name,fan_count&access_token=${settings.pageAccessToken}`,
+    `${graphApi()}/${encodeURIComponent(pageIdOrUsername.trim())}?fields=name,fan_count&access_token=${settings.pageAccessToken}`,
     { signal: AbortSignal.timeout(10_000) }
   );
-  if (!res.ok) throw new Error(`"${pageIdOrUsername}" page nahi mila (status ${res.status}).`);
+  if (!res.ok) throw new Error(`"${pageIdOrUsername}" page was not found (status ${res.status}).`);
   const data = await res.json();
   return { pageId: data.id, name: data.name, fanCount: Number(data.fan_count ?? 0) };
 }
@@ -171,17 +177,17 @@ export interface AudienceDemographics {
 
 export async function fetchAudienceInsights(settings: FacebookSettings): Promise<AudienceDemographics> {
   const res = await fetch(
-    `${GRAPH_API}/${settings.pageId}/insights?metric=page_fans_gender_age&access_token=${settings.pageAccessToken}`,
+    `${graphApi()}/${settings.pageId}/insights?metric=page_fans_gender_age&access_token=${settings.pageAccessToken}`,
     { signal: AbortSignal.timeout(10_000) }
   );
   if (res.status === 400 || res.status === 403) {
     throw new Error(
-      "Meta ne is Page ke liye demographic data available nahi rakha — classic Audience Insights tool bohot restrict/deprecated ho chuka hai. Basic fan count 'Page & Post Discovery' tab mein dekh sakte hain."
+      "Meta does not make demographic data available for this Page — the classic Audience Insights tool has been heavily restricted or deprecated. You can view the basic fan count in the Page & Post Discovery tab."
     );
   }
   if (!res.ok) throw new Error(`Insights fetch failed (status ${res.status}).`);
   const data = await res.json();
   const values = data.data?.[0]?.values?.[0]?.value;
-  if (!values) throw new Error("Koi demographic data nahi mila.");
+  if (!values) throw new Error("No demographic data was found.");
   return { breakdown: values };
 }

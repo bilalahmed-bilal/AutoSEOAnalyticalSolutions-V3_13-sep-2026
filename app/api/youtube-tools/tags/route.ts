@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     if (!topic || !topic.trim()) {
       return NextResponse.json({ error: "Video topic is required." }, { status: 400 });
     }
-    const tags = await generateYouTubeTags(topic.trim(), language || "ur");
+    const tags = await generateYouTubeTags(topic.trim(), language || "en");
     await entitled.consume();
     return NextResponse.json({ tags });
   } catch (err) {

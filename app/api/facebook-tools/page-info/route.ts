@@ -4,7 +4,7 @@ import { sameOriginWrite } from "@/lib/security/request";
 import { fetchPageInfo, updatePageInfo } from "@/lib/publishers/facebook";
 import { generatePageSeoFix } from "@/lib/claude";
 import type { Language } from "@/lib/claude";
-import { errorMessage } from "@/lib/unknown";
+import { jsonPublicError } from "@/lib/security/public-error";
 import { isProductAccess, requireProductAccess } from "@/lib/billing/access";
 
 export async function GET(req: NextRequest) {
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     const info = await fetchPageInfo(access.settings);
     return NextResponse.json({ info, pageSelection: "FIRST_PAGE_ONLY" });
   } catch (err: unknown) {
-    return NextResponse.json({ error: errorMessage(err, "Page info fetch nahi ho saka.") }, { status: 500 });
+    return jsonPublicError(err, "Page info could not be fetched.");
   }
 }
 
@@ -34,16 +34,16 @@ export async function POST(req: NextRequest) {
       about?: string;
     };
     if (apply) {
-      if (!about) return NextResponse.json({ error: "About text zaroori hai apply karne ke liye." }, { status: 400 });
+      if (!about) return NextResponse.json({ error: "About text is required to apply changes." }, { status: 400 });
       await updatePageInfo(access.settings, { about });
       await entitled.consume();
       return NextResponse.json({ ok: true });
     }
-    if (!niche) return NextResponse.json({ error: "Niche batana zaroori hai." }, { status: 400 });
+    if (!niche) return NextResponse.json({ error: "A niche is required." }, { status: 400 });
     const info = await fetchPageInfo(access.settings);
-    const fix = await generatePageSeoFix(info, niche, language || "ur");
+    const fix = await generatePageSeoFix(info, niche, language || "en");
     return NextResponse.json({ info, fix });
   } catch (err: unknown) {
-    return NextResponse.json({ error: errorMessage(err, "Kuch ghalat ho gaya.") }, { status: 500 });
+    return jsonPublicError(err, "The Page could not be updated.");
   }
 }

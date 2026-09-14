@@ -1,7 +1,7 @@
 /**
  * Provider-independent billing adapter.
  * Browser payment status is never trusted. No live provider is configured yet.
- * Nexora Free Beta keeps billing OFF.
+ * AIBISORA Free Beta keeps billing OFF.
  */
 import { isFreeBetaMode } from "@/lib/product/beta";
 export type BillingProviderId = "none" | "gopayfast" | "rapid-gateway";
@@ -27,7 +27,7 @@ export async function createCheckoutSession(_input: {
 }): Promise<{ checkoutUrl: string; provider: BillingProviderId }> {
   void _input;
   if (isFreeBetaMode()) {
-    throw new BillingNotConfiguredError("Billing is off for Nexora Free Beta.");
+    throw new BillingNotConfiguredError("Billing is off for AIBISORA Free Beta.");
   }
   const provider = configuredBillingProvider();
   if (provider === "none") throw new BillingNotConfiguredError();

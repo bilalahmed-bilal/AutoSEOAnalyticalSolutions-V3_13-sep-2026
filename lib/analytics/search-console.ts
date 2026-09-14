@@ -56,7 +56,7 @@ export async function getSearchConsoleSummary(settings: SearchConsoleSettings, s
     settings.siteUrl ||
     sites.find((s) => /siteFullUser|siteOwner/i.test(s.permissionLevel))?.siteUrl ||
     sites[0]?.siteUrl;
-  if (!siteUrl) throw new Error("Google Search Console mein koi accessible property nahi mili.");
+  if (!siteUrl) throw new Error("No accessible Google Search Console property was found.");
   const rows = await querySearchAnalytics(settings.accessToken, siteUrl, startDate, endDate);
   let clicks = 0,
     impressions = 0,

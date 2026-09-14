@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isFacebookSecurityContext, requireFacebookAccess } from "@/lib/facebook-security";
 import { fetchAudienceInsights } from "@/lib/publishers/facebook";
-import { errorMessage } from "@/lib/unknown";
+import { jsonPublicError } from "@/lib/security/public-error";
 import { isProductAccess, requireProductAccess } from "@/lib/billing/access";
 
 export async function GET(req: NextRequest) {
@@ -13,6 +13,6 @@ export async function GET(req: NextRequest) {
     const insights = await fetchAudienceInsights(access.settings);
     return NextResponse.json({ insights });
   } catch (err: unknown) {
-    return NextResponse.json({ error: errorMessage(err, "Insights fetch nahi ho sakay.") }, { status: 500 });
+    return jsonPublicError(err, "Could not fetch insights.");
   }
 }
